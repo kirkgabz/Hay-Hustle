@@ -5,8 +5,22 @@ namespace HayHustle
 {
     // NOTE: only ADD new values at the END of these enums - save files store them as numbers.
     public enum AnimalKind { Chicken, Sheep, Cow, Goat, Pig, Turkey, Llama }
-    public enum Product { Egg, Wool, Milk, Cake, Yarn, Butter, GoatMilk, Cheese, Truffle, Feather, Pillow, LlamaWool, Coat }
-    public enum PredatorKind { Fox, Hawk, Wolf, Snake, Rat, Bear }
+    public enum Product { Egg, Wool, Milk, Cake, Yarn, Butter, GoatMilk, Cheese, Truffle, Feather, Pillow, LlamaWool, Coat, Wheat, Carrot, Corn, Pumpkin, Meal }
+    public enum PredatorKind { Fox, Hawk, Wolf, Snake, Rat, Bear, Zombie }
+    public enum CropKind { Wheat, Carrot, Corn, Pumpkin }
+
+    /// <summary>Jobs for hired workers and survivors. Rest = off duty / healing in the Bunkhouse.</summary>
+    public enum JobKind { Rest, Collector, WaterCarrier, FactoryHand, Driver, Guard, Builder, Farmer, Cook }
+
+    public class CropDef
+    {
+        public CropKind Kind;
+        public string Name;
+        public Product Produces;
+        public int SeedCost, Yield, UnlockRank;
+        public float GrowTime;
+        public Color Color;
+    }
     public enum HelperKind { Cat, Dog }
     public enum WorkerKind { Collector, WaterCarrier, FactoryHand, Driver, Guard }
 
@@ -168,6 +182,11 @@ namespace HayHustle
             [Product.Pillow]    = new ProductDef { Product = Product.Pillow,    Name = "Pillow",     Price = 220, SpoilTime = 60f,  UnlockRank = 11 },
             [Product.LlamaWool] = new ProductDef { Product = Product.LlamaWool, Name = "Llama Wool", Price = 120, SpoilTime = 120f, UnlockRank = 14 },
             [Product.Coat]      = new ProductDef { Product = Product.Coat,      Name = "Luxury Coat",Price = 500, SpoilTime = 60f,  UnlockRank = 14 },
+            [Product.Wheat]     = new ProductDef { Product = Product.Wheat,     Name = "Wheat",      Price = 6,   SpoilTime = 90f,  UnlockRank = 1 },
+            [Product.Carrot]    = new ProductDef { Product = Product.Carrot,    Name = "Carrot",     Price = 10,  SpoilTime = 90f,  UnlockRank = 2 },
+            [Product.Corn]      = new ProductDef { Product = Product.Corn,      Name = "Corn",       Price = 12,  SpoilTime = 90f,  UnlockRank = 3 },
+            [Product.Pumpkin]   = new ProductDef { Product = Product.Pumpkin,   Name = "Pumpkin",    Price = 25,  SpoilTime = 120f, UnlockRank = 5 },
+            [Product.Meal]      = new ProductDef { Product = Product.Meal,      Name = "Meal",       Price = 30,  SpoilTime = 90f,  UnlockRank = 1 },
         };
 
         public static readonly List<RecipeDef> Recipes = new List<RecipeDef>
@@ -182,6 +201,8 @@ namespace HayHustle
                 Position = new Vector3(-20f, 0f, 6f), Wall = new Color(0.98f, 0.9f, 0.55f), Roof = new Color(0.45f, 0.3f, 0.15f) },
             new RecipeDef { Building = "Pillow Factory", Input = Product.Feather, InputAmount = 3, Output = Product.Pillow, Time = 30f, UnlockRank = 11,
                 Position = new Vector3(-19f, 0f, -14f), Wall = new Color(0.9f, 0.8f, 0.9f), Roof = new Color(0.4f, 0.25f, 0.45f) },
+            new RecipeDef { Building = "Kitchen", Input = Product.Wheat, InputAmount = 2, Output = Product.Meal, Time = 20f, UnlockRank = 1,
+                Position = new Vector3(-12f, 0f, 25f), Wall = new Color(0.85f, 0.75f, 0.6f), Roof = new Color(0.45f, 0.18f, 0.12f) },
             new RecipeDef { Building = "Tailor", Input = Product.LlamaWool, InputAmount = 2, Output = Product.Coat, Time = 45f, UnlockRank = 14,
                 Position = new Vector3(20f, 0f, -17f), Wall = new Color(0.82f, 0.7f, 0.55f), Roof = new Color(0.2f, 0.2f, 0.22f) },
         };
@@ -200,6 +221,9 @@ namespace HayHustle
                 Targets = new AnimalKind[0], Bounty = 15, MinRank = 10 },
             [PredatorKind.Bear] = new PredatorDef { Kind = PredatorKind.Bear, Name = "Bear", Hits = 12, Speed = 3.0f, FleeSpeed = 3.5f,
                 Targets = new[] { AnimalKind.Cow, AnimalKind.Pig, AnimalKind.Goat, AnimalKind.Sheep }, NightOnly = true, Bounty = 400, MinRank = 15 },
+            [PredatorKind.Zombie] = new PredatorDef { Kind = PredatorKind.Zombie, Name = "Zombie", Hits = 5, Speed = 1.8f, FleeSpeed = 2.2f,
+                Targets = new[] { AnimalKind.Chicken, AnimalKind.Sheep, AnimalKind.Cow, AnimalKind.Goat, AnimalKind.Pig, AnimalKind.Turkey, AnimalKind.Llama },
+                Bounty = 30, MinRank = 1 },
         };
 
         public static readonly Dictionary<HelperKind, HelperDef> Helpers = new Dictionary<HelperKind, HelperDef>
@@ -209,7 +233,7 @@ namespace HayHustle
                 Speed = 6f, HitInterval = 0.6f, Hunts = new[] { PredatorKind.Rat, PredatorKind.Snake } },
             [HelperKind.Dog] = new HelperDef { Kind = HelperKind.Dog, Name = "Guard Dog", Price = 900, UnlockRank = 8, Max = 2,
                 Description = "Patrols the pasture. Chases and bites foxes, wolves and bears.",
-                Speed = 6.5f, HitInterval = 0.8f, Hunts = new[] { PredatorKind.Fox, PredatorKind.Wolf, PredatorKind.Bear } },
+                Speed = 6.5f, HitInterval = 0.8f, Hunts = new[] { PredatorKind.Fox, PredatorKind.Wolf, PredatorKind.Bear, PredatorKind.Zombie } },
         };
 
         public static readonly Dictionary<WorkerKind, WorkerDef> Workers = new Dictionary<WorkerKind, WorkerDef>
@@ -252,6 +276,44 @@ namespace HayHustle
         public const int TrapPrice = 150;
         public const int MaxTraps = 4;
         public const float QuickSellRate = 0.7f;
+
+        // ================= Survival =================
+
+        public static readonly Dictionary<CropKind, CropDef> Crops = new Dictionary<CropKind, CropDef>
+        {
+            [CropKind.Wheat]   = new CropDef { Kind = CropKind.Wheat,   Name = "Wheat",   Produces = Product.Wheat,   SeedCost = 5,  GrowTime = 60f,  Yield = 3, UnlockRank = 1, Color = new Color(0.92f, 0.78f, 0.35f) },
+            [CropKind.Carrot]  = new CropDef { Kind = CropKind.Carrot,  Name = "Carrot",  Produces = Product.Carrot,  SeedCost = 10, GrowTime = 90f,  Yield = 3, UnlockRank = 2, Color = new Color(0.95f, 0.5f, 0.12f) },
+            [CropKind.Corn]    = new CropDef { Kind = CropKind.Corn,    Name = "Corn",    Produces = Product.Corn,    SeedCost = 15, GrowTime = 120f, Yield = 4, UnlockRank = 3, Color = new Color(0.98f, 0.85f, 0.25f) },
+            [CropKind.Pumpkin] = new CropDef { Kind = CropKind.Pumpkin, Name = "Pumpkin", Produces = Product.Pumpkin, SeedCost = 30, GrowTime = 180f, Yield = 2, UnlockRank = 5, Color = new Color(0.95f, 0.55f, 0.1f) },
+        };
+
+        /// <summary>How much food one item gives a survivor. Survivors need FoodPerSurvivor every morning.</summary>
+        public static readonly Dictionary<Product, int> FoodValue = new Dictionary<Product, int>
+        {
+            [Product.Wheat] = 1, [Product.Egg] = 1, [Product.Milk] = 1, [Product.GoatMilk] = 1,
+            [Product.Carrot] = 2, [Product.Corn] = 2, [Product.Pumpkin] = 4, [Product.Meal] = 5,
+        };
+        public const int FoodPerSurvivor = 3;
+
+        public static readonly int[] BunkUpgradeCost = { 0, 800, 1600, 3200, 5000 };   // level 1..5, 2 beds per level
+        public const int BedsPerLevel = 2;
+        public static readonly int[] BarnUpgradeCost = { 600, 1200, 2400, 4000, 6000 }; // +30 storage per level
+        public const int BarnStoragePerLevel = 30;
+        public const float GateMaxHp = 100f;
+
+        public static readonly string[] SurvivorNames =
+        {
+            "Maria", "Jun", "Rosa", "Ben", "Lito", "Ana", "Carlo", "Mika", "Tess", "Diego", "Nina", "Paolo",
+            "Lea", "Marco", "Ivy", "Rafael", "Joy", "Sam", "Liza", "Tony", "Gina", "Andre", "Kim", "Noel",
+        };
+
+        public static string JobName(JobKind j) => j switch
+        {
+            JobKind.Rest => "Off duty",
+            JobKind.WaterCarrier => "Water Carrier",
+            JobKind.FactoryHand => "Factory Hand",
+            _ => j.ToString(),
+        };
 
         public static int XpToReach(int rank) => 40 * (rank - 1) * (rank - 1);
 

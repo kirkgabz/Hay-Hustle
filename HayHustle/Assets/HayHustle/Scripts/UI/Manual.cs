@@ -6,7 +6,7 @@ namespace HayHustle
         public static readonly string[] Titles =
         {
             "Controls", "Water & Grass", "Collecting", "Buildings", "Selling",
-            "Animals", "Predators", "Defense", "Workers", "Fields", "Orders", "Rank & Rewards", "Menu & Settings"
+            "Animals", "Predators", "Defense", "Workers", "Fields", "Orders", "Zombies", "Survivors", "Crops & Food", "Rank & Rewards", "Menu & Settings"
         };
 
         public static readonly string[] Pages =
@@ -182,6 +182,51 @@ namespace HayHustle
             "Orders only ask for goods you are able to make.\n" +
             "Click <b>Discard</b> to remove an order you can't do. New orders arrive every ~25 seconds.\n" +
             "If the time runs out, the order disappears.",
+
+            // ---------------- Zombies ----------------
+            "<b>The farm is surrounded by the undead</b>\n" +
+            "From <b>Day 2</b>, zombies shamble out of the forest - in the day and (more of them) at night. You hear a groan when they come.\n" +
+            "They are slow but tough: about <b>5 hits</b> (3 when you have defenders). Click a zombie to hit it, like any predator.\n\n" +
+            "<b>What zombies do</b>\n" +
+            "They walk around the fence to a field's <b>gate</b> and smash it. A red bar over the gate shows its strength. " +
+            "When the gate breaks they go in and drag an animal away - chase them!\n" +
+            "They shove the farmer back (you are never hurt) and bite survivors (survivors get injured, never killed).\n\n" +
+            "<b>How to fight back</b>\n" +
+            "<b>Click a damaged gate</b> to repair it (+40), or give a survivor the <b>Builder</b> job.\n" +
+            "<b>Guards</b> (hired workers or survivors on guard duty), <b>Guard Dogs</b>, <b>traps</b>, <b>lamp posts</b> (zombies are slower in the light), " +
+            "and <b>Llamas</b> / the Brave Cow (they kick zombies).\n" +
+            "Until you have a defender only one zombie comes at a time; after that, bigger hordes come at night.",
+
+            // ---------------- Survivors ----------------
+            "<b>Survivors join your farm</b>\n" +
+            "Now and then a survivor walks up the road. A card shows their name and skill - click <b>Accept</b> or <b>Decline</b>. " +
+            "They need a <b>free bed</b> in the Bunkhouse.\n\n" +
+            "<b>Camp window</b> (Camp button, C, or click the <b>Bunkhouse</b> next to the road)\n" +
+            "See every survivor's health, morale and what they are doing. Click <b>Job</b> to change it:\n" +
+            "<b>Guard</b> - fights zombies and predators.   <b>Builder</b> - repairs gates.\n" +
+            "<b>Farmer</b> - plants, waters and harvests crops.   <b>Cook</b> - makes meals in the Kitchen.\n" +
+            "<b>Collector</b> - picks up goods.   <b>Water Carrier</b> - replants grass.   <b>Off duty</b> - rests.\n" +
+            "Survivors work <b>40% faster at their skill</b>. Collectors, Guards and Water Carriers can also be given one field (\"Works in\").\n\n" +
+            "<b>Food and morale</b>\n" +
+            "Survivors cost no coins, but every morning each one eats <b>3 food</b>. Fed survivors get happier. " +
+            "Hungry ones lose morale - at 0 they leave the farm.\n\n" +
+            "<b>Injuries</b>: a survivor bitten too often is <b>injured</b> and walks to the Bunkhouse to rest until healed.\n" +
+            "<b>More beds</b>: Camp -> More beds (+2 per upgrade, up to 10).",
+
+            // ---------------- Crops & Food ----------------
+            "<b>Crop Field</b> (fenced field north-west of the yard, next to the Kitchen)\n" +
+            "1. <b>Click an empty plot</b> and choose seeds.\n" +
+            "2. <b>Click it again to water it</b> (uses 1 water from your bucket). It only grows when watered.\n" +
+            "3. When it is ripe, <b>click to harvest</b>.\n" +
+            "Or give a survivor the <b>Farmer</b> job - they do all of it (choose what they plant in the seed window: \"Farmer survivors plant\").\n\n" +
+            "<b>Crops</b>\n" +
+            "Wheat (Rank 1) - 5 coins, 60s, x3, 1 food each\n" +
+            "Carrot (Rank 2) - 10 coins, 90s, x3, 2 food each\n" +
+            "Corn (Rank 3) - 15 coins, 120s, x4, 2 food each\n" +
+            "Pumpkin (Rank 5) - 30 coins, 180s, x2, 4 food each\n\n" +
+            "<b>Kitchen</b>: 2 Wheat -> 1 Meal (5 food). Click it, or give a survivor the <b>Cook</b> job.\n" +
+            "Eggs and milk also count as food (1 each). Your food total is shown at the top left.\n\n" +
+            "<b>Barn storage</b>: Shop -> Farm -> Barn storage adds +30 storage per level (up to 5 levels). The barn is reinforced - zombies can't get in.",
 
             // ---------------- Rank & Rewards ----------------
             "<b>Farm Rank</b>\n" +

@@ -77,7 +77,7 @@ namespace HayHustle
             var options = new List<PredatorDef>();
             foreach (var d in GameData.Predators.Values)
             {
-                if (d.Kind == PredatorKind.Rat || d.Kind == PredatorKind.Bear) continue; // special waves below
+                if (d.Kind == PredatorKind.Rat || d.Kind == PredatorKind.Bear || d.Kind == PredatorKind.Zombie) continue; // special waves below
                 if (gm.Rank < d.MinRank || (d.NightOnly && !night)) continue;
                 if (!guarded && d.Kind != PredatorKind.Fox) continue; // only foxes until you hire a guard
                 if (HasPrey(gm, d)) options.Add(d);
@@ -100,6 +100,19 @@ namespace HayHustle
             bool bearComing = guarded && gm.Rank >= bear.MinRank && night && HasPrey(gm, bear) && Random.value < 0.3f;
             if (bearComing) plan.Add(PredatorKind.Bear);
 
+            // Zombies: day and night from Day 2 (more at night). Only one at a time until you have defenders
+            // (a Guard worker or a survivor on guard duty); then bigger hordes come after dark.
+            bool zombiesComing = false;
+            if (gm.DayNight.Day >= 2 || gm.Rank >= 3)
+            {
+                int defenders = gm.CountWorkers(WorkerKind.Guard) + gm.Survivors.Count(s => s && s.Job == JobKind.Guard);
+                int zombies = defenders == 0
+                    ? (Random.value < (night ? 0.8f : 0.4f) ? 1 : 0)
+                    : night ? Random.Range(2, 3 + Mathf.Min(2, gm.Rank / 5)) : (Random.value < 0.6f ? 1 : 0);
+                for (int i = 0; i < zombies; i++) plan.Add(PredatorKind.Zombie);
+                zombiesComing = zombies > 0;
+            }
+
             if (plan.Count == 0) return;
 
             bool sheepAlarm = gm.CountAnimals(AnimalKind.Sheep, true) > 0;
@@ -118,6 +131,7 @@ namespace HayHustle
             string who = string.Join(", ", plan.Distinct().Select(k => GameData.Predators[k].Name.ToLower() + (k == PredatorKind.Rat ? "s" : "")));
             string early = sheepAlarm ? " (your sheep heard them early)" : "";
             FX.Play(Sfx.Warn, 0.55f);
+            if (zombiesComing) FX.Play(Sfx.Groan, 0.7f);
             if (bearComing) gm.Notify($"DANGER: a BEAR is coming from the {from}!", Palette.UiRed, 7f);
             gm.Notify($"WARNING: {who} coming from the {from}!{early}", Palette.UiRed, 5f);
         }

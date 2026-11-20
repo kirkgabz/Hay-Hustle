@@ -20,6 +20,23 @@ namespace HayHustle
         public int index;
         public bool owned;
         public float[] grass;
+        public float gateDamage;   // 0 = gate is whole
+    }
+
+    [System.Serializable]
+    public class SurvivorSave
+    {
+        public int id, skill, job, field;
+        public string name;
+        public float health, morale;
+    }
+
+    [System.Serializable]
+    public class CropSave
+    {
+        public int crop = -1;
+        public float growth;
+        public bool watered;
     }
 
     [System.Serializable]
@@ -45,6 +62,10 @@ namespace HayHustle
         public int cats, dogs;
         public int fenceLevel, traps, lamps;
         public bool tutorialDone;
+        public List<SurvivorSave> survivors = new List<SurvivorSave>();
+        public List<CropSave> crops = new List<CropSave>();
+        public int nextSurvivorId, bunkLevel, barnLevel, farmerCrop;
+        public float cropGateDamage;
     }
 
     /// <summary>

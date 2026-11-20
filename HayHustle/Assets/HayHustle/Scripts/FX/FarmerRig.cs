@@ -13,6 +13,7 @@ namespace HayHustle
     {
         public float RunSpeed = 8.5f;
         public bool Unscaled;   // animate even while the game is paused (menus)
+        public bool ZombieWalk; // arms forward, slow shamble
 
         Transform upper, legL, legR, armL, armR, tool;
         float walkPhase, actStart, actDuration;
@@ -53,6 +54,17 @@ namespace HayHustle
             float bodyY = moving ? Mathf.Abs(sin) * 0.06f : 0f;
             float toolX = 40f;
             float k = 1f - Mathf.Exp(-18f * dt);
+
+            if (ZombieWalk)
+            {
+                legLx *= 0.6f;
+                legRx *= 0.6f;
+                armLx = -85f + Mathf.Sin(Now * 2.3f) * 6f;
+                armRx = -80f + Mathf.Sin(Now * 2.0f + 1f) * 6f;
+                upperX = 14f + Mathf.Sin(Now * 1.5f) * 3f;
+                armLz = -6f;
+                armRz = 6f;
+            }
 
             float t = (Now - actStart) / actDuration;
             if (act != ActAnim.None && t < 1f)

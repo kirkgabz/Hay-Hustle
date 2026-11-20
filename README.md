@@ -92,6 +92,16 @@ Built with **Unity 6 (URP)** and **C#**. PC first, Android later. Backend: **Sup
 - Hunger icons above hungry animals; bigger goods with a glowing ring
 - Guided tutorial with Skip; pause menu with volume, Low/High graphics, replay tutorial, save & quit
 
+### Batch 4 - Zombie survival
+
+- Zombies (day and night from Day 2, hordes at night): smash field gates, drag animals away, shove the farmer, injure survivors
+- Gates with health on every field; click to repair, or a Builder survivor repairs them
+- Survivors arrive on the road (Accept / Decline), live in the Bunkhouse, eat food every morning, have morale and health
+- Survivor jobs: Guard, Builder, Farmer, Collector, Cook, Water Carrier, Off duty (40% faster at their skill)
+- Crop Field (Wheat, Carrot, Corn, Pumpkin): plant, water, harvest; Kitchen turns wheat into meals
+- Barn storage upgrades (+30 per level); Bunkhouse bed upgrades
+- Sign in / Sign up (Supabase), save backups, 4x4 fields with 5 animals each
+
 ## Not built yet (next steps)
 
 - Real realistic models and animations (drop prefabs in `Resources/Models`; also `Cat`, `Dog`, `Snake`, `Rat`, `Bear`, `Goat`, `Pig`, `Turkey`, `Llama`)

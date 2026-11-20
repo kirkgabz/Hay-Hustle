@@ -60,6 +60,20 @@ namespace HayHustle
             BusyLabel = label;
         }
 
+        /// <summary>A zombie shoved the farmer: pushed back and stunned for a moment (no damage).</summary>
+        public void Knockback(Vector3 from)
+        {
+            Vector3 d = transform.position - from;
+            d.y = 0f;
+            if (d.sqrMagnitude < 0.01f) d = -transform.forward;
+            cc.Move(d.normalized * 1.8f);
+            task = TaskType.None;
+            SetBusy(0.7f, "A zombie knocked you back!");
+            PlayAnim(ActAnim.Pickup, 0.6f);
+            FX.Text(transform.position + Vector3.up * 2.4f, "Ouch!", Palette.UiRed, 1.1f);
+            FX.Play(Sfx.Hit, 0.6f);
+        }
+
         public void PlayAnim(ActAnim a, float duration)
         {
             if (rig) rig.Play(a, duration);

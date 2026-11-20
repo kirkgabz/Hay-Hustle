@@ -11,7 +11,17 @@ namespace HayHustle
     /// </summary>
     public partial class HUD : MonoBehaviour
     {
-        public enum Panel { None, Shop, Truck, Rewards, Help, Warehouse, Orders, Pause }
+        public enum Panel { None, Shop, Truck, Rewards, Help, Warehouse, Orders, Pause, Camp, Seeds }
+
+        CropPlot seedPlot;
+
+        /// <summary>Open the seed picker for an empty crop plot.</summary>
+        public void OpenSeeds(CropPlot plot)
+        {
+            seedPlot = plot;
+            Open = Panel.Seeds;
+            FX.Play(Sfx.Click, 0.2f);
+        }
 
         public static HUD I { get; private set; }
         public Panel Open = Panel.None;
@@ -103,6 +113,7 @@ namespace HayHustle
             if (kb.bKey.wasPressedThisFrame) Toggle(Panel.Shop);
             if (kb.rKey.wasPressedThisFrame) Toggle(Panel.Rewards);
             if (kb.oKey.wasPressedThisFrame) Toggle(Panel.Orders);
+            if (kb.cKey.wasPressedThisFrame) Toggle(Panel.Camp);
             if (kb.hKey.wasPressedThisFrame || kb.f1Key.wasPressedThisFrame) Toggle(Panel.Help);
             if (kb.escapeKey.wasPressedThisFrame) Open = Open == Panel.None ? Panel.Pause : Panel.None;
         }
@@ -546,6 +557,7 @@ namespace HayHustle
                 DrawFieldLabels(gm, cam);
                 DrawHungerIcons(gm, cam);
                 DrawWorkerTags(gm, cam);
+                DrawGateBars(gm, cam);
                 DrawPredatorBars(gm, cam);
                 DrawPopups(cam);
                 DrawTutorialArrow(gm, cam);
@@ -558,6 +570,7 @@ namespace HayHustle
             DrawPrompt(gm);
             DrawMenuButtons(gm);
             DrawTutorialCard(gm);
+            DrawArrivalCard(gm);
             Lbl(new Rect(16, H - 30, W - 700, 24), "Click anything to act  -  WASD move  -  Shift run  -  E use  -  F/Space swing  -  Right-drag camera  -  Scroll zoom  -  Esc menu", tiny);
             if (Open == Panel.None && confirm == null) DrawHover(gm);
 
@@ -570,12 +583,14 @@ namespace HayHustle
                 case Panel.Warehouse: DrawWarehouse(gm); break;
                 case Panel.Orders: DrawOrders(gm); break;
                 case Panel.Pause: DrawPause(gm); break;
+                case Panel.Camp: DrawCamp(gm); break;
+                case Panel.Seeds: DrawSeeds(gm); break;
             }
         }
 
         void DrawStats(GameManager gm)
         {
-            Rect r = new Rect(14, 14, 350, 196);
+            Rect r = new Rect(14, 14, 350, 222);
             PanelBg(r);
             float x = r.x + 16, y = r.y + 10;
             Lbl(new Rect(x, y, 320, 34), gm.FarmName, h2); y += 38;
@@ -589,7 +604,11 @@ namespace HayHustle
             int need = max ? 1 : GameData.XpToReach(rank + 1) - GameData.XpToReach(rank);
             Lbl(new Rect(x, y, 320, 28), $"<color=#{Hex(Palette.UiGreen)}>Farm Rank {rank}</color>   {(max ? "MAX" : cur + "/" + need + " XP")}", label); y += 30;
             Bar(new Rect(x, y, 318, 9), max ? 1f : cur / (float)need, Palette.UiGreen); y += 16;
-            Lbl(new Rect(x, y, 320, 26), $"Warehouse {gm.InventoryTotal}/{gm.WarehouseCapacity}     Animals {gm.Animals.Count}/{gm.AnimalCapacity}", small);
+            Lbl(new Rect(x, y, 320, 26), $"Storage {gm.InventoryTotal}/{gm.StorageCapacity}     Animals {gm.Animals.Count}/{gm.AnimalCapacity}", small);
+            y += 26;
+            bool lowFood = gm.FoodPoints < gm.FoodNeededPerDay;
+            string food = gm.Survivors.Count == 0 ? $"Food {gm.FoodPoints}" : $"Food {gm.FoodPoints}  (survivors eat {gm.FoodNeededPerDay}/day)";
+            Lbl(new Rect(x, y, 320, 26), lowFood ? $"<color=#{Hex(Palette.UiRed)}>{food}</color>" : $"<color=#C8F08C>{food}</color>", small);
         }
 
         void DrawClock(GameManager gm)
@@ -612,7 +631,7 @@ namespace HayHustle
                 int n = gm.Inventory[(int)pd.Product];
                 if (n > 0) lines.Add($"{pd.Name}  <b>x{n}</b>");
             }
-            Rect r = new Rect(14, 220, 240, 44 + Mathf.Max(1, lines.Count) * 25);
+            Rect r = new Rect(14, 246, 240, 44 + Mathf.Max(1, lines.Count) * 25);
             PanelBg(r);
             Lbl(new Rect(r.x + 14, r.y + 8, 220, 28), "<b>Warehouse</b>", label);
             if (lines.Count == 0) Lbl(new Rect(r.x + 14, r.y + 38, 220, 24), "<color=#AAAAAA>empty</color>", small);
@@ -638,7 +657,7 @@ namespace HayHustle
         void DrawMenuButtons(GameManager gm)
         {
             float bw = 112f, bh = 48f, gap = 8f;
-            int n = 5;
+            int n = 6;
             Rect bar = new Rect(W - (bw * n + gap * (n + 1)) - 14, H - 96, bw * n + gap * (n + 1), bh + gap * 2);
             PanelBg(bar);
             float x = bar.x + gap, y = bar.y + gap;
@@ -650,6 +669,8 @@ namespace HayHustle
             x += bw + gap;
             bool claim = DailyRewards.CanClaim(gm);
             if (Btn(new Rect(x, y, bw, bh), claim ? "<color=#FFE066>Reward!</color>" : "Rewards")) Toggle(Panel.Rewards);
+            x += bw + gap;
+            if (Btn(new Rect(x, y, bw, bh), gm.Visitor ? "<color=#FFE066>Camp!</color>" : "Camp")) Toggle(Panel.Camp);
             x += bw + gap;
             if (Btn(new Rect(x, y, bw, bh), "Manual")) Toggle(Panel.Help);
             x += bw + gap;
@@ -738,6 +759,50 @@ namespace HayHustle
                 ShadowLabel(new Rect(g.x - 150, g.y - 22, 300, 20), w.Def.Name, tagStyle, new Color(0.75f, 1f, 0.7f));
                 ShadowLabel(new Rect(g.x - 150, g.y - 4, 300, 20), w.Status, tagStyle, new Color(0.9f, 0.9f, 0.88f));
             }
+            var people = new List<Survivor>(gm.Survivors);
+            if (gm.Visitor) people.Add(gm.Visitor);
+            foreach (var s in people)
+            {
+                if (!s || !ToGui(cam, s.transform.position + Vector3.up * 2.35f, out var g)) continue;
+                string role = s.Joined ? GameData.JobName(s.Job == JobKind.Rest && !s.Injured ? s.AssignedJob : s.Job) : "Visitor";
+                ShadowLabel(new Rect(g.x - 150, g.y - 22, 300, 20), $"{s.PersonName}  ({role})", tagStyle, new Color(1f, 0.88f, 0.55f));
+                ShadowLabel(new Rect(g.x - 150, g.y - 4, 300, 20), s.Status, tagStyle, new Color(0.9f, 0.9f, 0.88f));
+                if (s.Joined && s.Health < 99f)
+                    Bar(new Rect(g.x - 25, g.y + 16, 50, 6), s.Health / 100f, s.Injured ? Palette.UiRed : Palette.UiGreen);
+            }
+        }
+
+        /// <summary>Health bar over gates that are damaged.</summary>
+        void DrawGateBars(GameManager gm, Camera cam)
+        {
+            foreach (var gate in gm.Gates)
+            {
+                if (!gate || gate.Hp >= GameData.GateMaxHp) continue;
+                if (!ToGui(cam, gate.transform.position + Vector3.up * 1.6f, out var g)) continue;
+                bool broken = !gate.Intact;
+                string text = broken ? "GATE BROKEN - click to repair" : $"Gate {gate.Hp:0}/{GameData.GateMaxHp:0}";
+                ShadowLabel(new Rect(g.x - 160, g.y - 26, 320, 22), text, barStyle, broken ? Palette.UiRed : Color.white);
+                Bar(new Rect(g.x - 40, g.y, 80, 9), gate.Hp / GameData.GateMaxHp, broken ? Palette.UiRed : new Color(0.95f, 0.7f, 0.2f));
+            }
+        }
+
+        /// <summary>A survivor at the gate: Accept or Decline.</summary>
+        void DrawArrivalCard(GameManager gm)
+        {
+            var v = gm.Visitor;
+            if (!v || Open != Panel.None) return;
+            float w = 560f;
+            float top = (Tutorial.Active ? 150f : 14f);
+            Rect r = new Rect(W / 2f - w / 2f, top, w, 132);
+            PanelBg(r);
+            Lbl(new Rect(r.x + 18, r.y + 8, w - 36, 30), $"<color=#{Hex(Palette.UiGold)}><b>A survivor arrived: {v.PersonName}</b></color>", label);
+            Lbl(new Rect(r.x + 18, r.y + 38, w - 36, 44),
+                $"Skilled {GameData.JobName(v.Skill)}. Needs a bed ({gm.Survivors.Count}/{gm.Beds} used) and eats {GameData.FoodPerSurvivor} food every morning (you have {gm.FoodPoints}).", wrap);
+            bool bed = gm.Survivors.Count < gm.Beds;
+            GUI.enabled = bed && confirm == null;
+            if (Btn(new Rect(r.x + 18, r.yMax - 46, 250, 38), bed ? "Accept" : "No free bed")) gm.AcceptVisitor();
+            GUI.enabled = confirm == null;
+            if (Btn(new Rect(r.xMax - 268, r.yMax - 46, 250, 38), "Decline")) gm.DeclineVisitor();
         }
 
         void DrawWarnings(GameManager gm, Camera cam)

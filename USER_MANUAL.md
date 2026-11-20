@@ -220,7 +220,59 @@ Orders only ask for goods you are able to make.
 Click **Discard** to remove an order you can't do. New orders arrive every ~25 seconds.  
 If the time runs out, the order disappears.
 
-## 12. Rank & Rewards
+## 12. Zombies
+
+**The farm is surrounded by the undead**  
+From **Day 2**, zombies shamble out of the forest - in the day and (more of them) at night. You hear a groan when they come.  
+They are slow but tough: about **5 hits** (3 when you have defenders). Click a zombie to hit it, like any predator.  
+  
+**What zombies do**  
+They walk around the fence to a field's **gate** and smash it. A red bar over the gate shows its strength. When the gate breaks they go in and drag an animal away - chase them!  
+They shove the farmer back (you are never hurt) and bite survivors (survivors get injured, never killed).  
+  
+**How to fight back**  
+**Click a damaged gate** to repair it (+40), or give a survivor the **Builder** job.  
+**Guards** (hired workers or survivors on guard duty), **Guard Dogs**, **traps**, **lamp posts** (zombies are slower in the light), and **Llamas** / the Brave Cow (they kick zombies).  
+Until you have a defender only one zombie comes at a time; after that, bigger hordes come at night.
+
+## 13. Survivors
+
+**Survivors join your farm**  
+Now and then a survivor walks up the road. A card shows their name and skill - click **Accept** or **Decline**. They need a **free bed** in the Bunkhouse.  
+  
+**Camp window** (Camp button, C, or click the **Bunkhouse** next to the road)  
+See every survivor's health, morale and what they are doing. Click **Job** to change it:  
+**Guard** - fights zombies and predators.   **Builder** - repairs gates.  
+**Farmer** - plants, waters and harvests crops.   **Cook** - makes meals in the Kitchen.  
+**Collector** - picks up goods.   **Water Carrier** - replants grass.   **Off duty** - rests.  
+Survivors work **40% faster at their skill**. Collectors, Guards and Water Carriers can also be given one field ("Works in").  
+  
+**Food and morale**  
+Survivors cost no coins, but every morning each one eats **3 food**. Fed survivors get happier. Hungry ones lose morale - at 0 they leave the farm.  
+  
+**Injuries**: a survivor bitten too often is **injured** and walks to the Bunkhouse to rest until healed.  
+**More beds**: Camp -> More beds (+2 per upgrade, up to 10).
+
+## 14. Crops & Food
+
+**Crop Field** (fenced field north-west of the yard, next to the Kitchen)  
+1. **Click an empty plot** and choose seeds.  
+2. **Click it again to water it** (uses 1 water from your bucket). It only grows when watered.  
+3. When it is ripe, **click to harvest**.  
+Or give a survivor the **Farmer** job - they do all of it (choose what they plant in the seed window: "Farmer survivors plant").  
+  
+**Crops**  
+Wheat (Rank 1) - 5 coins, 60s, x3, 1 food each  
+Carrot (Rank 2) - 10 coins, 90s, x3, 2 food each  
+Corn (Rank 3) - 15 coins, 120s, x4, 2 food each  
+Pumpkin (Rank 5) - 30 coins, 180s, x2, 4 food each  
+  
+**Kitchen**: 2 Wheat -> 1 Meal (5 food). Click it, or give a survivor the **Cook** job.  
+Eggs and milk also count as food (1 each). Your food total is shown at the top left.  
+  
+**Barn storage**: Shop -> Farm -> Barn storage adds +30 storage per level (up to 5 levels). The barn is reinforced - zombies can't get in.
+
+## 15. Rank & Rewards
 
 **Farm Rank**  
 Almost everything gives XP: planting, collecting, making products, selling, orders, breeding, catching predators.  
@@ -232,7 +284,7 @@ Day 1: 100 coins   Day 2: water + 50   Day 3: free chick   Day 4: 250 coins
 Day 5: 6 eggs   Day 6: free adult sheep   Day 7: Mystery chest (maybe a Golden Hen!)  
 Missing a day resets the streak to Day 1.
 
-## 13. Menu & Settings
+## 16. Menu & Settings
 
 **Menu** (button or Esc) pauses the game.  
   

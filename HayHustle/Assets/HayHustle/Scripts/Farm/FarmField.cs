@@ -10,6 +10,7 @@ namespace HayHustle
         public bool Owned;
         public Transform Root;
         public FieldSign Sign;
+        public FieldGate GateObj;
         public readonly List<GrassPatch> Grass = new List<GrassPatch>();
 
         public int Index => Def.Index;

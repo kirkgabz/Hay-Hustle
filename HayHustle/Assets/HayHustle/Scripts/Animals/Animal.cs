@@ -143,7 +143,7 @@ namespace HayHustle
         bool CanFightBack(Predator p)
         {
             if (p.Def == null || !p.CanBeHit) return false;
-            bool big = p.Kind == PredatorKind.Fox || p.Kind == PredatorKind.Wolf || p.Kind == PredatorKind.Bear;
+            bool big = p.Kind == PredatorKind.Fox || p.Kind == PredatorKind.Wolf || p.Kind == PredatorKind.Bear || p.Kind == PredatorKind.Zombie;
             bool small = p.Kind == PredatorKind.Snake || p.Kind == PredatorKind.Rat;
             if (Kind == AnimalKind.Llama) return big;
             if (Kind == AnimalKind.Cow && Rare) return big;

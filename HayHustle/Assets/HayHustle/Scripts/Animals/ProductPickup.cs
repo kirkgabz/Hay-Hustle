@@ -67,7 +67,7 @@ namespace HayHustle
                 else if (Time.time > nextFullWarning)
                 {
                     nextFullWarning = Time.time + 4f;
-                    gm.Notify("Warehouse is full! Sell goods or upgrade it.", Palette.UiRed);
+                    gm.Notify("Storage is full! Sell goods, or upgrade the warehouse or barn.", Palette.UiRed);
                 }
             }
         }

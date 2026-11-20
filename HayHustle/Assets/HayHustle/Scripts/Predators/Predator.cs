@@ -21,8 +21,8 @@ namespace HayHustle
         public bool Hidden { get; private set; }
         public bool IsCarrying => carrying != null || stolen.HasValue;
         /// <summary>Height of the health bar above the predator.</summary>
-        public float BarHeight => Kind == PredatorKind.Bear ? 2.7f : Kind == PredatorKind.Wolf ? 1.8f : Kind == PredatorKind.Fox ? 1.3f : Kind == PredatorKind.Hawk ? 0.9f : 0.7f;
-        public Color FurColor => Kind == PredatorKind.Fox ? new Color(0.86f, 0.42f, 0.12f) : Kind == PredatorKind.Wolf ? new Color(0.5f, 0.5f, 0.52f) : Kind == PredatorKind.Bear ? new Color(0.33f, 0.21f, 0.12f) : Kind == PredatorKind.Snake ? new Color(0.3f, 0.5f, 0.15f) : Kind == PredatorKind.Hawk ? new Color(0.4f, 0.27f, 0.15f) : new Color(0.45f, 0.42f, 0.4f);
+        public float BarHeight => Kind == PredatorKind.Zombie ? 2.5f : Kind == PredatorKind.Bear ? 2.7f : Kind == PredatorKind.Wolf ? 1.8f : Kind == PredatorKind.Fox ? 1.3f : Kind == PredatorKind.Hawk ? 0.9f : 0.7f;
+        public Color FurColor => Kind == PredatorKind.Zombie ? new Color(0.48f, 0.6f, 0.42f) : Kind == PredatorKind.Fox ? new Color(0.86f, 0.42f, 0.12f) : Kind == PredatorKind.Wolf ? new Color(0.5f, 0.5f, 0.52f) : Kind == PredatorKind.Bear ? new Color(0.33f, 0.21f, 0.12f) : Kind == PredatorKind.Snake ? new Color(0.3f, 0.5f, 0.15f) : Kind == PredatorKind.Hawk ? new Color(0.4f, 0.27f, 0.15f) : new Color(0.45f, 0.42f, 0.4f);
 
         public bool CanBeHit => !caught && Def != null && (!Def.Flying || transform.position.y < 3.5f);
 
@@ -37,6 +37,8 @@ namespace HayHustle
         Vector3 escapeDir;
         Transform visual, wingL, wingR;
         LimbAnimator limbs;
+        FarmerRig zrig;      // zombies walk like people
+        float nextBite;
         float hitFlash, retarget, legPhase;
         bool caught;
 
@@ -47,7 +49,12 @@ namespace HayHustle
             weak = GameManager.I.CountWorkers(WorkerKind.Guard) > 0;
             MaxHits = weak ? Mathf.Max(1, Mathf.CeilToInt(Def.Hits * 0.5f)) : Def.Hits;
             HitsLeft = MaxHits;
-            visual = Models.BuildPredator(kind, transform);
+            visual = kind == PredatorKind.Zombie ? Models.BuildZombie(transform) : Models.BuildPredator(kind, transform);
+            if (kind == PredatorKind.Zombie)
+            {
+                zrig = visual.gameObject.AddComponent<FarmerRig>();
+                zrig.ZombieWalk = true;
+            }
             wingL = visual.Find("WingL");
             wingR = visual.Find("WingR");
             limbs = visual.gameObject.AddComponent<LimbAnimator>();
@@ -78,7 +85,8 @@ namespace HayHustle
             if (state == State.Hunting)
             {
                 Vector3? goal;
-                if (Kind == PredatorKind.Rat) goal = RatGoal(gm, flat);
+                if (Kind == PredatorKind.Zombie) goal = ZombieGoal(gm, flat, dt);
+                else if (Kind == PredatorKind.Rat) goal = RatGoal(gm, flat);
                 else
                 {
                     goal = Kind == PredatorKind.Snake ? EggGoal(gm, flat) : null;
@@ -162,6 +170,113 @@ namespace HayHustle
             return ep;
         }
 
+        /// <summary>
+        /// Zombies: shove the farmer and bite survivors who come close, smash the gate of a field to get
+        /// to the animals inside, and drag an animal back to the forest. With nothing to eat they smash
+        /// any gate they find, then shamble away.
+        /// </summary>
+        Vector3? ZombieGoal(GameManager gm, Vector3 flat, float dt)
+        {
+            var player = gm.Player;
+            if (player)
+            {
+                Vector3 pp = player.transform.position;
+                pp.y = 0f;
+                float pd = GameManager.FlatDistance(pp, flat);
+                if (pd < 3.5f)
+                {
+                    if (pd < 1.3f && Time.time >= nextBite)
+                    {
+                        nextBite = Time.time + 1.6f;
+                        if (zrig) zrig.Play(ActAnim.Swing, 0.4f);
+                        player.Knockback(flat);
+                    }
+                    return pp;
+                }
+            }
+
+            Survivor victim = null;
+            float vd = 4f;
+            foreach (var s in gm.Survivors)
+            {
+                if (!s || s.Injured) continue;
+                float d = GameManager.FlatDistance(s.transform.position, flat);
+                if (d < vd) { vd = d; victim = s; }
+            }
+            if (victim != null)
+            {
+                Vector3 sp = victim.transform.position;
+                sp.y = 0f;
+                if (vd < 1.3f && Time.time >= nextBite)
+                {
+                    nextBite = Time.time + 1.6f;
+                    if (zrig) zrig.Play(ActAnim.Swing, 0.4f);
+                    victim.Damage(weak ? 10f : 15f);
+                }
+                return sp;
+            }
+
+            retarget -= dt;
+            if (!ValidTarget(target) || retarget <= 0f)
+            {
+                target = PickTarget(gm, flat);
+                retarget = 2f;
+            }
+            if (target != null)
+            {
+                var field = gm.Fields[Mathf.Clamp(target.Field, 0, gm.Fields.Count - 1)];
+                var gate = field.GateObj;
+                if (gate && gate.Intact && !field.Contains(flat, 0.3f))
+                {
+                    // The fence is solid: walk around it to the gate side (north) instead of through it.
+                    float gateZ = field.Center.z + field.HalfZ;
+                    if (flat.z < gateZ + 0.5f)
+                    {
+                        float side = flat.x < field.Center.x ? -1f : 1f;
+                        float outX = field.Center.x + side * (field.HalfX + 1.5f);
+                        if (Mathf.Abs(flat.x - field.Center.x) < field.HalfX + 1.0f) return new Vector3(outX, 0f, flat.z);
+                        return new Vector3(outX, 0f, gateZ + 1.5f);
+                    }
+                    return AttackGate(gate, flat);
+                }
+                Vector3 tp = target.transform.position;
+                tp.y = 0f;
+                if (GameManager.FlatDistance(tp, flat) < 0.9f)
+                {
+                    Grab(target, flat);
+                    return null;
+                }
+                return tp;
+            }
+
+            FieldGate nearest = null;
+            float gd = float.MaxValue;
+            foreach (var g in gm.Gates)
+            {
+                if (!g || !g.Intact) continue;
+                float d = GameManager.FlatDistance(g.transform.position, flat);
+                if (d < gd) { gd = d; nearest = g; }
+            }
+            return nearest ? AttackGate(nearest, flat) : (Vector3?)null;
+        }
+
+        Vector3? AttackGate(FieldGate gate, Vector3 flat)
+        {
+            Vector3 gp = gate.RepairPoint;
+            gp.y = 0f;
+            if (GameManager.FlatDistance(gp, flat) < 1.2f)
+            {
+                if (Time.time >= nextBite)
+                {
+                    nextBite = Time.time + 1.5f;
+                    if (zrig) zrig.Play(ActAnim.Swing, 0.4f);
+                    gate.Damage(weak ? 8f : 12f);
+                }
+                return flat;
+            }
+            return gp;
+        }
+
         Vector3? RatGoal(GameManager gm, Vector3 flat)
         {
             if (gm.InventoryTotal == 0) return null;
@@ -213,7 +328,8 @@ namespace HayHustle
         {
             carrying = a;
             target = null;
-            Vector3 hold = Def.Flying ? new Vector3(0f, -0.45f, 0f)
+            Vector3 hold = Kind == PredatorKind.Zombie ? new Vector3(0f, 0.9f, 0.6f)
+                : Def.Flying ? new Vector3(0f, -0.45f, 0f)
                 : Kind == PredatorKind.Bear ? new Vector3(0f, 0.6f, 1.3f)
                 : new Vector3(0f, 0.35f, 0.55f);
             a.SetCarried(transform, hold);
@@ -311,8 +427,16 @@ namespace HayHustle
             gm.PredatorsCaught++;
             gm.AddCoins(Def.Bounty);
             gm.AddXp(Kind == PredatorKind.Bear ? 40 : Kind == PredatorKind.Rat ? 3 : 10);
-            gm.Notify($"Caught the {Def.Name.ToLower()}! Sold to the zoo for {Def.Bounty} coins.", Palette.UiGreen, 4f);
-            FX.Text(transform.position + Vector3.up * (BarHeight + 0.5f), $"CAUGHT!  +{Def.Bounty} coins", Palette.UiGreen, 1.4f);
+            if (Kind == PredatorKind.Zombie)
+            {
+                gm.Notify($"Zombie defeated! +{Def.Bounty} coins.", Palette.UiGreen, 4f);
+                FX.Text(transform.position + Vector3.up * (BarHeight + 0.5f), $"ZOMBIE DOWN!  +{Def.Bounty} coins", Palette.UiGreen, 1.4f);
+            }
+            else
+            {
+                gm.Notify($"Caught the {Def.Name.ToLower()}! Sold to the zoo for {Def.Bounty} coins.", Palette.UiGreen, 4f);
+                FX.Text(transform.position + Vector3.up * (BarHeight + 0.5f), $"CAUGHT!  +{Def.Bounty} coins", Palette.UiGreen, 1.4f);
+            }
             FX.Burst(transform.position + Vector3.up * 0.6f, Palette.Gold, 16, 0.12f, 4f);
             FX.Play(Sfx.Catch, 0.6f);
             Destroy(gameObject);
@@ -346,7 +470,11 @@ namespace HayHustle
             if (hitFlash > 0f) hitFlash -= dt;
             visual.localScale = Vector3.one * (1f + Mathf.Max(0f, hitFlash) * 1.5f);
 
-            if (wingL && wingR)
+            if (zrig)
+            {
+                zrig.Tick(moving ? (state == State.Fleeing ? Def.FleeSpeed : Def.Speed) : 0f, dt);
+            }
+            else if (wingL && wingR)
             {
                 float a = Mathf.Sin(Time.time * 12f) * 30f;
                 wingL.localRotation = Quaternion.Euler(0f, 0f, -a);

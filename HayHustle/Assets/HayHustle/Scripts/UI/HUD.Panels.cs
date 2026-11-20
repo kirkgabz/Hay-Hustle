@@ -174,7 +174,7 @@ namespace HayHustle
 
         void DrawFarm(GameManager gm, Rect area)
         {
-            float contentH = gm.Fields.Count * 92f + 300f;
+            float contentH = gm.Fields.Count * 92f + 430f;
             farmScroll = BeginScroll(area, farmScroll, contentH);
             float y = 0, w = area.width - 26;
 
@@ -211,6 +211,19 @@ namespace HayHustle
                     Confirm("Upgrade your fences?", $"Pay {cost} coins for {GameData.FenceNames[lvl + 1]} on all your fields. Predators move {GameData.FenceSlow[lvl + 1] * 100f:0}% slower inside them.", "Upgrade", gm.UpgradeFence);
             }
             else Lbl(new Rect(16, y + 42, 560, 30), $"<color=#{Hex(Palette.UiGreen)}>Fully upgraded</color>", small);
+            y += 96;
+
+            Lbl(new Rect(0, y, w, 30), "<b>Barn storage</b>", label);
+            y += 34;
+            Row(new Rect(0, y, w, 84));
+            Lbl(new Rect(16, y + 6, 600, 30), $"Barn level {gm.BarnLevel}/{GameData.BarnUpgradeCost.Length}  -  +{gm.BarnLevel * GameData.BarnStoragePerLevel} storage", label);
+            Lbl(new Rect(16, y + 42, w - 340, 30), $"<color=#AAAAAA>Each level adds {GameData.BarnStoragePerLevel} storage space. The barn is reinforced - zombies can't break in.</color>", small);
+            if (gm.BarnLevel < GameData.BarnUpgradeCost.Length)
+            {
+                int cost = GameData.BarnUpgradeCost[gm.BarnLevel];
+                if (Btn(new Rect(w - 300, y + 18, 284, 48), $"Upgrade - {cost} coins"))
+                    Confirm("Upgrade the barn?", $"Pay {cost} coins for +{GameData.BarnStoragePerLevel} storage space.", "Upgrade", gm.UpgradeBarn);
+            }
             y += 96;
 
             Lbl(new Rect(0, y, w, 30), "<b>Traps</b>", label);
@@ -324,7 +337,7 @@ namespace HayHustle
 
         void DrawWarehouse(GameManager gm)
         {
-            Rect r = Window(1000, 700, $"Warehouse   {gm.InventoryTotal}/{gm.WarehouseCapacity}");
+            Rect r = Window(1000, 700, $"Storage   {gm.InventoryTotal}/{gm.StorageCapacity}   (warehouse {gm.WarehouseCapacity} + barn {gm.BarnLevel * GameData.BarnStoragePerLevel})");
             Lbl(new Rect(r.x + 26, r.y + 58, r.width - 360, 26), $"Quick Sell pays instantly, but only {GameData.QuickSellRate * 100f:0}% of the truck price.", small);
             int cost = Warehouse.UpgradeCost;
             if (Btn(new Rect(r.xMax - 330, r.y + 58, 300, 44), $"Upgrade +20 space - {cost}"))
@@ -444,10 +457,10 @@ namespace HayHustle
         void DrawHelp()
         {
             Rect r = Window(1260, 820, "User Manual - what to click");
-            float tx = r.x + 26, ty = r.y + 66, tw = 220, th = 52;
+            float tx = r.x + 26, ty = r.y + 66, tw = 220, th = Mathf.Min(52f, (r.height - 90f) / Manual.Titles.Length - 4f);
             for (int i = 0; i < Manual.Titles.Length; i++)
             {
-                if (Tgl(new Rect(tx, ty + i * (th + 6), tw, th), manualTab == i, Manual.Titles[i]) && manualTab != i)
+                if (Tgl(new Rect(tx, ty + i * (th + 4), tw, th), manualTab == i, Manual.Titles[i]) && manualTab != i)
                 {
                     manualTab = i;
                     manualScroll = Vector2.zero;
@@ -461,6 +474,109 @@ namespace HayHustle
             manualScroll = BeginScroll(inner, manualScroll, textH + 20);
             Lbl(new Rect(0, 0, inner.width - 30, textH + 10), page, wrap);
             GUI.EndScrollView();
+        }
+
+        // ================= Camp (survivors) =================
+
+        Vector2 campScroll;
+        static readonly JobKind[] SurvivorJobs = { JobKind.Guard, JobKind.Builder, JobKind.Farmer, JobKind.Collector, JobKind.Cook, JobKind.WaterCarrier, JobKind.Rest };
+
+        void DrawCamp(GameManager gm)
+        {
+            Rect r = Window(1100, 760, $"Camp   -   survivors {gm.Survivors.Count}/{gm.Beds} beds");
+            float x = r.x + 26, w = r.width - 52, y = r.y + 60;
+            bool low = gm.FoodPoints < gm.FoodNeededPerDay;
+            Lbl(new Rect(x, y, w - 320, 28), $"Food in storage: <b>{gm.FoodPoints}</b>   -   needed every morning: <b>{gm.FoodNeededPerDay}</b>" +
+                (low ? $"   <color=#{Hex(Palette.UiRed)}>not enough! grow crops / cook meals</color>" : ""), small);
+            if (gm.BunkLevel < GameData.BunkUpgradeCost.Length)
+            {
+                int cost = GameData.BunkUpgradeCost[gm.BunkLevel];
+                if (Btn(new Rect(r.xMax - 330, y - 4, 300, 40), $"More beds (+{GameData.BedsPerLevel}) - {cost}"))
+                    Confirm("Upgrade the Bunkhouse?", $"Pay {cost} coins for {GameData.BedsPerLevel} more beds, so more survivors can join.", "Upgrade", gm.UpgradeBunkhouse);
+            }
+            y += 40;
+            Lbl(new Rect(x, y, w, 26), "<color=#AAAAAA>Click a survivor's job to change it. They are faster at their skill. Injured survivors rest in the Bunkhouse until healed.</color>", small);
+            y += 34;
+
+            if (gm.Survivors.Count == 0)
+            {
+                Lbl(new Rect(x, y + 10, w, 60), "No survivors yet. Now and then someone walks up the road - click <b>Accept</b> on their card to let them join.", wrap);
+                return;
+            }
+
+            Rect list = new Rect(x, y, w, r.yMax - y - 20);
+            const float step = 104f;
+            campScroll = BeginScroll(list, campScroll, gm.Survivors.Count * step);
+            float ry = 0, rw = list.width - 26;
+            foreach (var s in gm.Survivors.ToArray())
+            {
+                if (!s) continue;
+                Row(new Rect(0, ry, rw, step - 8));
+                Lbl(new Rect(14, ry + 6, 360, 28), $"<b>{s.PersonName}</b>   <color=#AAAAAA>skill: {GameData.JobName(s.Skill)}</color>", label);
+                Lbl(new Rect(14, ry + 36, 360, 24), s.Status, small);
+                Lbl(new Rect(14, ry + 64, 70, 22), "Health", tiny);
+                Bar(new Rect(80, ry + 70, 110, 9), s.Health / 100f, s.Injured ? Palette.UiRed : Palette.UiGreen);
+                Lbl(new Rect(200, ry + 64, 70, 22), "Morale", tiny);
+                Bar(new Rect(266, ry + 70, 110, 9), s.Morale / 100f, s.Morale < 35f ? Palette.UiRed : Palette.UiGold);
+
+                var survivor = s;
+                if (Btn(new Rect(rw - 650, ry + 10, 230, 38), "Job: " + GameData.JobName(s.AssignedJob)))
+                {
+                    int i = System.Array.IndexOf(SurvivorJobs, s.AssignedJob);
+                    survivor.SetJob(SurvivorJobs[(i + 1) % SurvivorJobs.Length]);
+                    FX.Play(Sfx.Click, 0.2f);
+                }
+                if (s.AssignedJob == JobKind.Collector || s.AssignedJob == JobKind.Guard || s.AssignedJob == JobKind.WaterCarrier)
+                {
+                    if (Btn(new Rect(rw - 410, ry + 10, 250, 38), "Works in: " + s.AreaName))
+                    {
+                        survivor.AssignedField = NextField(gm, survivor.AssignedField);
+                        FX.Play(Sfx.Click, 0.2f);
+                    }
+                }
+                if (Btn(new Rect(rw - 150, ry + 10, 136, 38), "Dismiss"))
+                    Confirm($"Send {s.PersonName} away?", "They leave the farm for good.", "Send away", () => gm.DismissSurvivor(survivor), true);
+                ry += step;
+            }
+            GUI.EndScrollView();
+        }
+
+        // ================= Seed picker =================
+
+        void DrawSeeds(GameManager gm)
+        {
+            if (!seedPlot || !seedPlot.Empty) { Open = Panel.None; return; }
+            Rect r = Window(760, 520, "Plant a crop");
+            float x = r.x + 26, w = r.width - 52, y = r.y + 64;
+            Lbl(new Rect(x, y, w, 26), "Pick seeds. After planting, water the plot (1 water). Ripe crops are food for survivors - or sell them.", small);
+            y += 36;
+            foreach (var d in GameData.Crops.Values)
+            {
+                Row(new Rect(x, y, w, 72));
+                Lbl(new Rect(x + 14, y + 4, w - 260, 32), $"<b>{d.Name}</b>   <color=#AAAAAA>grows in {d.GrowTime:0}s  -  harvest {d.Yield}  -  {GameData.FoodValue[d.Produces]} food each</color>", label);
+                Lbl(new Rect(x + 14, y + 38, w - 260, 26), $"Seeds: {d.SeedCost} coins", small);
+                var def = d;
+                if (gm.Rank < d.UnlockRank)
+                    Lbl(new Rect(x + w - 236, y + 20, 226, 30), $"<color=#AAAAAA>Unlocks at Rank {d.UnlockRank}</color>", small);
+                else if (Btn(new Rect(x + w - 236, y + 14, 222, 44), $"Plant - {d.SeedCost}"))
+                {
+                    if (seedPlot.Plant(def.Kind)) Open = Panel.None;
+                }
+                y += 80;
+            }
+            y += 6;
+            Lbl(new Rect(x, y + 6, 300, 30), "Farmer survivors plant:", label);
+            if (Btn(new Rect(x + 300, y, 260, 42), GameData.Crops[gm.FarmerCrop].Name))
+            {
+                var kinds = (CropKind[])System.Enum.GetValues(typeof(CropKind));
+                int i = System.Array.IndexOf(kinds, gm.FarmerCrop);
+                for (int k = 1; k <= kinds.Length; k++)
+                {
+                    var next = kinds[(i + k) % kinds.Length];
+                    if (gm.Rank >= GameData.Crops[next].UnlockRank) { gm.FarmerCrop = next; break; }
+                }
+                FX.Play(Sfx.Click, 0.2f);
+            }
         }
 
         // ================= Pause / settings =================

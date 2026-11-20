@@ -33,6 +33,8 @@ namespace HayHustle
             BuildWarehouse(world);
             gm.Truck = BuildTruck(world);
             BuildOrderBoard(gm, world);
+            BuildCropField(gm, world);
+            BuildBunkhouse(gm, world);
             BuildDecor(world);
             BuildForest(world);
             BuildScatter(world);
@@ -59,6 +61,7 @@ namespace HayHustle
                 if (Mathf.Abs(p.x - def.Center.x) < def.Cols * 1.25f + 3f && Mathf.Abs(p.z - def.Center.z) < def.Rows * 1.25f + 3f) return false;
             if (p.x > -25f && p.x < 25f && p.z > 4f && p.z < 19f) return false;    // farmyard
             if (Mathf.Abs(p.x) < 4f && p.z > 15f) return false;                     // road
+            if (p.x > -32f && p.x < 20f && p.z > 15f && p.z < 33f) return false;   // crop field, kitchen, bunkhouse
             if (p.x < -14f && p.x > -26f && p.z > -19f && p.z < 10f) return false;  // west buildings
             if (p.x > 14f && p.x < 26f && p.z > -21f && p.z < 12f) return false;   // east buildings
             return true;
@@ -209,6 +212,7 @@ namespace HayHustle
                     f.Grass.Clear();
                     if (f.Root) Object.Destroy(f.Root.gameObject);
                     f.Root = null;
+                    f.GateObj = null;
                     f.Owned = false;
                 }
                 if (f.Sign == null) BuildFieldSign(f);
@@ -233,6 +237,13 @@ namespace HayHustle
             Rail(fence, new Vector3(x1, 0, z0), new Vector3(x1, 0, z1));
             Rail(fence, new Vector3(x0, 0, z1), new Vector3(f.Center.x - 2f, 0, z1));
             Rail(fence, new Vector3(f.Center.x + 2f, 0, z1), new Vector3(x1, 0, z1));
+
+            // The gate fills the gap. Zombies smash it to reach the animals.
+            var gateGo = new GameObject("Gate");
+            gateGo.transform.SetParent(f.Root);
+            gateGo.transform.position = new Vector3(f.Center.x, 0f, z1);
+            f.GateObj = gateGo.AddComponent<FieldGate>();
+            f.GateObj.Init(f.Def.Name);
 
             for (int ix = 0; ix < f.Def.Cols; ix++)
             for (int iz = 0; iz < f.Def.Rows; iz++)
@@ -298,6 +309,57 @@ namespace HayHustle
                     if (r) r.sharedMaterial = Visuals.Mat(t.name == "Post" ? post : rail);
                 }
             }
+        }
+
+        // ---------------- Survival: crops and bunkhouse ----------------
+
+        static void BuildCropField(GameManager gm, Transform world)
+        {
+            Vector3 c = new Vector3(-24f, 0f, 24f);
+            gm.CropFieldCenter = c;
+            var root = new GameObject("Crop Field").transform;
+            root.SetParent(world);
+            float half = 4 * 1.25f + 0.55f;
+            float x0 = c.x - half, x1 = c.x + half, z0 = c.z - half, z1 = c.z + half;
+            var fence = new GameObject("Fence").transform;
+            fence.SetParent(root);
+            Rail(fence, new Vector3(x0, 0, z1), new Vector3(x1, 0, z1));
+            Rail(fence, new Vector3(x0, 0, z0), new Vector3(x0, 0, z1));
+            Rail(fence, new Vector3(x1, 0, z0), new Vector3(x1, 0, z1));
+            Rail(fence, new Vector3(x0, 0, z0), new Vector3(c.x - 2f, 0, z0)); // gate gap on the side facing the yard
+            Rail(fence, new Vector3(c.x + 2f, 0, z0), new Vector3(x1, 0, z0));
+
+            var gateGo = new GameObject("Gate");
+            gateGo.transform.SetParent(root);
+            gateGo.transform.position = new Vector3(c.x, 0f, z0);
+            gateGo.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+            gm.CropGate = gateGo.AddComponent<FieldGate>();
+            gm.CropGate.Init("Crop Field");
+
+            for (int ix = 0; ix < 4; ix++)
+            for (int iz = 0; iz < 4; iz++)
+            {
+                var go = new GameObject("Crop Plot");
+                go.transform.SetParent(root);
+                go.transform.position = c + new Vector3(-3.75f + ix * 2.5f, 0f, -3.75f + iz * 2.5f);
+                go.AddComponent<CropPlot>().Init();
+            }
+
+            var sign = new GameObject("Crop Field Sign").transform;
+            sign.SetParent(root);
+            sign.position = new Vector3(c.x + 3.4f, 0f, z0 - 1.3f);
+            sign.rotation = Quaternion.Euler(0f, 180f, 0f);
+            Models.BuildSign(sign, "Crops");
+        }
+
+        static void BuildBunkhouse(GameManager gm, Transform world)
+        {
+            Vector3 pos = new Vector3(13f, 0f, 25f);
+            var root = House(world, "Bunkhouse", pos, new Vector3(6f, 3.2f, 5f), new Color(0.62f, 0.48f, 0.34f), new Color(0.25f, 0.35f, 0.22f), Face(pos, new Vector3(0f, 0f, 18f)), out float top);
+            Visuals.Prim(Cube, root, new Vector3(1.6f, top - 0.1f, -0.8f), new Vector3(0.45f, 1.2f, 0.45f), Palette.Stone); // chimney
+            root.gameObject.AddComponent<Bunkhouse>().Range = 4.6f;
+            Vector3 door = root.position + root.forward * 3.4f;
+            gm.BunkhouseDoor = new Vector3(door.x, 0f, door.z);
         }
 
         static void BuildOrderBoard(GameManager gm, Transform world)

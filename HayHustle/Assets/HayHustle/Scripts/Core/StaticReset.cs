@@ -13,7 +13,7 @@ namespace HayHustle
         {
             Interactable.All.Clear();
             ProductPickup.All.Clear();
-            Worker.ClearClaims();
+            Laborer.ClearClaims();
             Tutorial.Stop();
             Backend.ResetRuntime();
         }

@@ -269,8 +269,9 @@ namespace HayHustle
         public class Look
         {
             public Color Shirt, Torso, Pants, Boots, Hat, HatBand;
-            public bool Plaid, Overalls, Braid, Cap;
+            public bool Plaid, Overalls, Braid, Cap, NoHat;
             public float Brim = 0.62f;
+            public Color Skin = Palette.Skin, Eyes = Palette.Black, Hair = Palette.Hair;
         }
 
         public static Look FarmerLook(CharacterChoice c)
@@ -381,18 +382,19 @@ namespace HayHustle
                 P(Cube, upper, -0.15f, 0.55f, 0.142f, 0.07f, 0.16f, 0.01f, look.Torso);
                 P(Cube, upper, 0, 0.25f, 0.145f, 0.18f, 0.14f, 0.01f, look.Torso * 0.85f + Color.black * 0.15f);
             }
-            P(Cube, upper, 0, 0.65f, 0, 0.14f, 0.1f, 0.14f, Palette.Skin);
-            P(Sphere, upper, 0, 0.85f, 0, 0.36f, 0.4f, 0.36f, Palette.Skin);
-            P(Sphere, upper, 0, 0.91f, -0.04f, 0.38f, 0.36f, 0.36f, Palette.Hair);
-            P(Sphere, upper, 0.07f, 0.87f, 0.165f, 0.05f, 0.05f, 0.03f, Palette.Black);
-            P(Sphere, upper, -0.07f, 0.87f, 0.165f, 0.05f, 0.05f, 0.03f, Palette.Black);
+            P(Cube, upper, 0, 0.65f, 0, 0.14f, 0.1f, 0.14f, look.Skin);
+            P(Sphere, upper, 0, 0.85f, 0, 0.36f, 0.4f, 0.36f, look.Skin);
+            P(Sphere, upper, 0, 0.91f, -0.04f, 0.38f, 0.36f, 0.36f, look.Hair);
+            P(Sphere, upper, 0.07f, 0.87f, 0.165f, 0.05f, 0.05f, 0.03f, look.Eyes);
+            P(Sphere, upper, -0.07f, 0.87f, 0.165f, 0.05f, 0.05f, 0.03f, look.Eyes);
             P(Cube, upper, 0, 0.76f, 0.172f, 0.08f, 0.015f, 0.01f, new Color(0.6f, 0.3f, 0.3f));
             if (look.Braid)
             {
-                P(Cube, upper, 0, 0.6f, -0.2f, 0.1f, 0.42f, 0.1f, Palette.Hair);
+                P(Cube, upper, 0, 0.6f, -0.2f, 0.1f, 0.42f, 0.1f, look.Hair);
                 P(Sphere, upper, 0, 0.38f, -0.2f, 0.08f, 0.08f, 0.08f, new Color(0.9f, 0.4f, 0.5f));
             }
-            if (look.Cap)
+            if (look.NoHat) { }
+            else if (look.Cap)
             {
                 P(Sphere, upper, 0, 1.0f, -0.01f, 0.4f, 0.22f, 0.4f, look.Hat);
                 P(Cube, upper, 0, 0.98f, 0.2f, 0.3f, 0.03f, 0.2f, look.HatBand);
@@ -408,7 +410,108 @@ namespace HayHustle
             {
                 var arm = Pivot(upper, side < 0 ? "ArmL" : "ArmR", 0.34f * side, 0.55f, 0f);
                 P(Cube, arm, 0, -0.25f, 0, 0.15f, 0.58f, 0.17f, look.Shirt);
-                P(Cube, arm, 0, -0.59f, 0, 0.13f, 0.12f, 0.14f, Palette.Skin);
+                P(Cube, arm, 0, -0.59f, 0, 0.13f, 0.12f, 0.14f, look.Skin);
+            }
+            return root;
+        }
+
+        /// <summary>A survivor: every one looks a bit different (seeded by their id).</summary>
+        public static Transform BuildSurvivor(int seed, Transform parent)
+        {
+            var rng = new System.Random(seed);
+            Color Pick(params Color[] c) => c[rng.Next(c.Length)];
+            var look = new Look
+            {
+                Shirt = Pick(new Color(0.55f, 0.45f, 0.3f), new Color(0.3f, 0.4f, 0.3f), new Color(0.6f, 0.2f, 0.2f), new Color(0.35f, 0.35f, 0.55f), new Color(0.75f, 0.7f, 0.6f)),
+                Pants = Pick(new Color(0.25f, 0.25f, 0.28f), new Color(0.35f, 0.3f, 0.2f), Palette.Jeans),
+                Boots = Pick(new Color(0.25f, 0.18f, 0.1f), new Color(0.15f, 0.15f, 0.15f)),
+                Hat = Pick(new Color(0.3f, 0.35f, 0.25f), new Color(0.6f, 0.15f, 0.12f), new Color(0.2f, 0.2f, 0.22f)),
+                Skin = Pick(Palette.Skin, new Color(0.8f, 0.6f, 0.45f), new Color(0.6f, 0.42f, 0.3f), new Color(0.95f, 0.82f, 0.7f)),
+                Hair = Pick(Palette.Hair, new Color(0.1f, 0.08f, 0.06f), new Color(0.55f, 0.4f, 0.2f), new Color(0.6f, 0.6f, 0.6f)),
+                Braid = rng.Next(3) == 0,
+            };
+            look.Torso = look.Shirt;
+            look.HatBand = look.Hat * 0.7f + Color.black * 0.3f;
+            int hat = rng.Next(3);
+            look.Cap = hat == 1;
+            look.NoHat = hat == 2;
+            var root = BuildPerson(look, parent);
+            // A backpack - they have travelled far.
+            var upper = FindChild(root, "Upper");
+            if (upper) P(Cube, upper, 0, 0.32f, -0.22f, 0.4f, 0.45f, 0.18f, new Color(0.35f, 0.3f, 0.2f));
+            return root;
+        }
+
+        /// <summary>A zombie: grey-green skin, torn dark clothes, glowing red eyes.</summary>
+        public static Transform BuildZombie(Transform parent)
+        {
+            var model = Visuals.TryModel("Zombie", parent);
+            if (model != null) return model;
+            var look = new Look
+            {
+                Shirt = new Color(0.32f, 0.3f, 0.26f), Torso = new Color(0.32f, 0.3f, 0.26f),
+                Pants = new Color(0.2f, 0.22f, 0.25f), Boots = new Color(0.15f, 0.12f, 0.1f),
+                Skin = new Color(0.48f, 0.6f, 0.42f), Eyes = new Color(1f, 0.15f, 0.1f), Hair = new Color(0.2f, 0.2f, 0.18f),
+                NoHat = true,
+            };
+            var root = BuildPerson(look, parent);
+            var upper = FindChild(root, "Upper");
+            if (upper)
+            {
+                Color torn = new Color(0.45f, 0.12f, 0.1f);
+                P(Cube, upper, 0.12f, 0.2f, 0.146f, 0.14f, 0.18f, 0.01f, torn);
+                P(Cube, upper, -0.1f, 0.45f, 0.146f, 0.1f, 0.08f, 0.01f, torn);
+            }
+            return root;
+        }
+
+        static Transform FindChild(Transform root, string name)
+        {
+            foreach (var t in root.GetComponentsInChildren<Transform>()) if (t.name == name) return t;
+            return null;
+        }
+
+        /// <summary>Crop plant for a growth stage: 1 = sprout, 2 = growing, 3 = ripe.</summary>
+        public static Transform BuildCrop(CropKind kind, int stage, Transform parent)
+        {
+            var root = Visuals.NewRoot(parent);
+            Color leaf = new Color(0.3f, 0.6f, 0.2f);
+            var d = GameData.Crops[kind];
+            float[,] spots = { { -0.6f, -0.6f }, { 0.6f, -0.6f }, { -0.6f, 0.6f }, { 0.6f, 0.6f }, { 0f, 0f } };
+            for (int i = 0; i < spots.GetLength(0); i++)
+            {
+                float x = spots[i, 0], z = spots[i, 1];
+                if (stage == 1) { P(Cube, root, x, 0.1f, z, 0.08f, 0.2f, 0.08f, leaf); continue; }
+                switch (kind)
+                {
+                    case CropKind.Wheat:
+                    {
+                        float h = stage == 2 ? 0.5f : 0.85f;
+                        Color c = stage == 3 ? d.Color : new Color(0.5f, 0.7f, 0.3f);
+                        P(Cube, root, x, h / 2f, z, 0.06f, h, 0.06f, c);
+                        P(Cube, root, x + 0.12f, h / 2f, z + 0.08f, 0.06f, h * 0.9f, 0.06f, c, 0f, 0f, 8f);
+                        if (stage == 3) P(Cube, root, x, h + 0.08f, z, 0.1f, 0.2f, 0.1f, d.Color * 0.9f + Color.black * 0.1f);
+                        break;
+                    }
+                    case CropKind.Carrot:
+                        P(Cube, root, x, 0.18f, z, 0.25f, 0.3f, 0.06f, leaf, 0f, 45f, 0f);
+                        P(Cube, root, x, 0.18f, z, 0.25f, 0.3f, 0.06f, leaf, 0f, -45f, 0f);
+                        if (stage == 3) P(Cube, root, x, 0.04f, z, 0.16f, 0.1f, 0.16f, d.Color);
+                        break;
+                    case CropKind.Corn:
+                    {
+                        float h = stage == 2 ? 0.8f : 1.5f;
+                        P(Cyl, root, x, h / 2f, z, 0.07f, h / 2f, 0.07f, leaf);
+                        P(Cube, root, x, h * 0.6f, z, 0.45f, 0.04f, 0.1f, leaf, 0f, 30f, -20f);
+                        if (stage == 3) P(Cube, root, x + 0.08f, h * 0.65f, z, 0.1f, 0.3f, 0.1f, d.Color);
+                        break;
+                    }
+                    case CropKind.Pumpkin:
+                        P(Cube, root, x, 0.06f, z, 0.5f, 0.06f, 0.5f, leaf, 0f, 30f, 0f);
+                        if (stage == 3) P(Sphere, root, x, 0.2f, z, 0.45f, 0.36f, 0.45f, d.Color);
+                        else P(Sphere, root, x, 0.1f, z, 0.18f, 0.16f, 0.18f, new Color(0.5f, 0.65f, 0.25f));
+                        break;
+                }
             }
             return root;
         }

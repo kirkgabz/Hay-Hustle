@@ -44,10 +44,23 @@ namespace HayHustle
         public Product WantedProduct = Product.Egg;
         public int Mess;                       // spoiled food lying around - attracts rats
         public int FenceLevel, Traps, Lamps;
+        public int BunkLevel = 1, BarnLevel;
+        public CropKind FarmerCrop = CropKind.Wheat;
+        int nextSurvivorId = 1;
+        float arrivalTimer = 150f, visitorTimeout;
         public bool TutorialDone;
 
         public int Rank => GameData.RankFromXp(Xp);
         public int AnimalCapacity => Fields.Where(f => f.Owned).Sum(f => f.Def.Capacity);
+        public int StorageCapacity => WarehouseCapacity + BarnLevel * GameData.BarnStoragePerLevel;
+        public int Beds => BunkLevel * GameData.BedsPerLevel;
+
+        /// <summary>Food points in storage (see GameData.FoodValue).</summary>
+        public int FoodPoints
+        {
+            get { int f = 0; foreach (var kv in GameData.FoodValue) f += Inventory[(int)kv.Key] * kv.Value; return f; }
+        }
+        public int FoodNeededPerDay => Survivors.Count * GameData.FoodPerSurvivor;
 
         // ---- World ----
         public readonly List<FarmField> Fields = new List<FarmField>();
@@ -58,6 +71,12 @@ namespace HayHustle
         public readonly List<ProcessingBuilding> Buildings = new List<ProcessingBuilding>();
         public readonly List<Trap> TrapObjects = new List<Trap>();
         public readonly List<Lamp> LampObjects = new List<Lamp>();
+        public readonly List<Survivor> Survivors = new List<Survivor>();
+        public readonly List<FieldGate> Gates = new List<FieldGate>();
+        public readonly List<CropPlot> CropPlots = new List<CropPlot>();
+        public Survivor Visitor { get; private set; }
+        public FieldGate CropGate;
+        public Vector3 CropFieldCenter, BunkhouseDoor;
         public readonly List<GrassPatch> Grass = new List<GrassPatch>();
         public readonly List<Note> Notes = new List<Note>();
         public readonly OrderBook Orders = new OrderBook();
@@ -110,7 +129,11 @@ namespace HayHustle
                     night ? Palette.UiRed : Palette.UiGold, 5f);
             }
 
-            if (!Tutorial.HoldsPredators) Orders.Tick(this, dt);
+            if (!Tutorial.HoldsPredators)
+            {
+                Orders.Tick(this, dt);
+                TickArrivals(dt);
+            }
 
             autosave -= dt;
             if (autosave <= 0f) { autosave = 30f; SaveGame(); }
@@ -124,6 +147,7 @@ namespace HayHustle
             Notify($"Day {DayNight.Day} begins on {FarmName}.", Palette.UiGold, 5f);
             RerollWanted();
             PayWages();
+            FeedSurvivors();
         }
 
         // ================= Screens =================
@@ -171,6 +195,13 @@ namespace HayHustle
             FenceLevel = 0;
             Traps = 0;
             Lamps = 0;
+            BunkLevel = 1;
+            BarnLevel = 0;
+            FarmerCrop = CropKind.Wheat;
+            nextSurvivorId = 1;
+            arrivalTimer = 150f;
+            foreach (var p in CropPlots) if (p) p.SetState(-1, 0f, false);
+            foreach (var g in Gates) if (g) g.SetHp(GameData.GateMaxHp);
             TutorialDone = false;
             DayNight.TimeOfDay = 0.3f;
             DayNight.Day = 1;
@@ -213,6 +244,7 @@ namespace HayHustle
                     if (fs.index < 0 || fs.index >= Fields.Count) continue;
                     var f = Fields[fs.index];
                     if (fs.owned && !f.Owned) WorldBuilder.BuildField(this, f);
+                    if (f.GateObj) f.GateObj.SetHp(GameData.GateMaxHp - fs.gateDamage);
                     if (fs.grass != null)
                         for (int i = 0; i < Mathf.Min(f.Grass.Count, fs.grass.Length); i++) f.Grass[i].SetAmount(fs.grass[i]);
                 }
@@ -257,6 +289,28 @@ namespace HayHustle
                     if (d.workerFields != null && i < d.workerFields.Count) w.AssignedField = d.workerFields[i];
                 }
             TutorialDone = d.tutorialDone || d.version < 2;
+
+            // Survival
+            BunkLevel = Mathf.Clamp(d.bunkLevel, 1, GameData.BunkUpgradeCost.Length);
+            BarnLevel = Mathf.Clamp(d.barnLevel, 0, GameData.BarnUpgradeCost.Length);
+            FarmerCrop = (CropKind)Mathf.Clamp(d.farmerCrop, 0, System.Enum.GetValues(typeof(CropKind)).Length - 1);
+            nextSurvivorId = Mathf.Max(1, d.nextSurvivorId);
+            if (CropGate) CropGate.SetHp(GameData.GateMaxHp - d.cropGateDamage);
+            for (int i = 0; i < CropPlots.Count; i++)
+            {
+                var c = d.crops != null && i < d.crops.Count ? d.crops[i] : null;
+                if (c != null) CropPlots[i].SetState(c.crop, c.growth, c.watered);
+                else CropPlots[i].SetState(-1, 0f, false);
+            }
+            if (d.survivors != null)
+                foreach (var ss in d.survivors)
+                {
+                    var s = SpawnSurvivor(ss.id, ss.name, (JobKind)ss.skill, BunkhouseDoor + new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(1f, 3f)));
+                    s.Join((JobKind)ss.job);
+                    s.AssignedField = ss.field;
+                    s.Health = Mathf.Clamp(ss.health, 1f, 100f);
+                    s.Morale = Mathf.Clamp(ss.morale, 1f, 100f);
+                }
             BeginPlay();
         }
 
@@ -292,6 +346,10 @@ namespace HayHustle
             TrapObjects.Clear();
             foreach (var l in LampObjects.ToArray()) if (l) Destroy(l.gameObject);
             LampObjects.Clear();
+            foreach (var s in Survivors.ToArray()) if (s) Destroy(s.gameObject);
+            Survivors.Clear();
+            if (Visitor) Destroy(Visitor.gameObject);
+            Visitor = null;
             foreach (var pk in ProductPickup.All.ToArray()) if (pk) Destroy(pk.gameObject);
             if (Player) Destroy(Player.gameObject);
             Player = null;
@@ -305,7 +363,7 @@ namespace HayHustle
             if (Mode != GameMode.Playing) return;
             var d = new SaveData
             {
-                version = 3,
+                version = 4,
                 farmName = FarmName,
                 character = (int)Character,
                 coins = Coins + (Truck ? Truck.PendingPayment : 0),
@@ -326,16 +384,25 @@ namespace HayHustle
                 fenceLevel = FenceLevel,
                 traps = Traps,
                 lamps = Lamps,
+                bunkLevel = BunkLevel,
+                barnLevel = BarnLevel,
+                farmerCrop = (int)FarmerCrop,
+                nextSurvivorId = nextSurvivorId,
+                cropGateDamage = CropGate ? GameData.GateMaxHp - CropGate.Hp : 0f,
                 tutorialDone = TutorialDone || !Tutorial.Active,
                 inventory = (int[])Inventory.Clone(),
             };
             if (Truck) for (int i = 0; i < d.inventory.Length; i++) d.inventory[i] += Truck.Cargo[i]; // unsent cargo goes back
             foreach (var f in Fields)
             {
-                var fs = new FieldSave { index = f.Index, owned = f.Owned, grass = new float[f.Grass.Count] };
+                var fs = new FieldSave { index = f.Index, owned = f.Owned, grass = new float[f.Grass.Count], gateDamage = f.GateObj ? GameData.GateMaxHp - f.GateObj.Hp : 0f };
                 for (int i = 0; i < f.Grass.Count; i++) fs.grass[i] = f.Grass[i].Amount;
                 d.fields.Add(fs);
             }
+            foreach (var s in Survivors)
+                if (s) d.survivors.Add(new SurvivorSave { id = s.Id, name = s.PersonName, skill = (int)s.Skill, job = (int)s.AssignedJob, field = s.AssignedField, health = s.Health, morale = s.Morale });
+            foreach (var p in CropPlots)
+                d.crops.Add(p ? new CropSave { crop = p.Crop.HasValue ? (int)p.Crop.Value : -1, growth = p.Growth, watered = p.Watered } : new CropSave());
             foreach (var w in Workers)
             {
                 if (!w) continue;
@@ -373,7 +440,7 @@ namespace HayHustle
 
         public bool AddProduct(Product p, int n = 1)
         {
-            if (InventoryTotal + n > WarehouseCapacity) return false;
+            if (InventoryTotal + n > StorageCapacity) return false;
             Inventory[(int)p] += n;
             return true;
         }
@@ -459,6 +526,8 @@ namespace HayHustle
         /// <summary>Can the player make this product with what they own now?</summary>
         public bool Obtainable(Product p)
         {
+            var crop = GameData.Crops.Values.FirstOrDefault(c => c.Produces == p);
+            if (crop != null) return Rank >= crop.UnlockRank;
             var maker = GameData.Animals.Values.FirstOrDefault(a => a.Produces == p);
             if (maker != null) return Rank >= maker.UnlockRank && HasFieldFor(maker.Kind);
             var r = GameData.Recipes.FirstOrDefault(x => x.Output == p);
@@ -469,6 +538,13 @@ namespace HayHustle
         public string HowToGet(Product p, out Vector3? target)
         {
             target = null;
+            var crop = GameData.Crops.Values.FirstOrDefault(c => c.Produces == p);
+            if (crop != null)
+            {
+                if (Rank < crop.UnlockRank) return $"A crop - {crop.Name} seeds unlock at Farm Rank {crop.UnlockRank}.";
+                target = CropFieldCenter;
+                return $"Plant {crop.Name} in the Crop Field (click an empty plot, choose {crop.Name}, then water it).";
+            }
             var r = GameData.Recipes.FirstOrDefault(x => x.Output == p);
             if (r != null)
             {
@@ -550,6 +626,129 @@ namespace HayHustle
             go.transform.position = new Vector3(pos.x, 0f, pos.z);
             go.AddComponent<Trap>();
             return go.transform;
+        }
+
+        // ================= Survivors =================
+
+        public Survivor SpawnSurvivor(int id, string name, JobKind skill, Vector3 pos)
+        {
+            var go = new GameObject("Survivor " + name);
+            go.transform.position = new Vector3(pos.x, 0f, pos.z);
+            var s = go.AddComponent<Survivor>();
+            s.Init(id, name, skill);
+            return s;
+        }
+
+        void TickArrivals(float dt)
+        {
+            if (Visitor)
+            {
+                visitorTimeout -= dt;
+                if (visitorTimeout <= 0f) DeclineVisitor(true);
+                return;
+            }
+            arrivalTimer -= dt;
+            if (arrivalTimer > 0f) return;
+            arrivalTimer = DayNight.DayLengthSeconds * Random.Range(0.45f, 0.9f);
+            if (Survivors.Count >= Beds)
+            {
+                Notify("A survivor walked past, but you have no free bed. Upgrade the Bunkhouse (Camp).", Palette.UiWhite, 6f);
+                return;
+            }
+            JobKind[] skills = { JobKind.Guard, JobKind.Builder, JobKind.Farmer, JobKind.Collector, JobKind.Cook };
+            string name = GameData.SurvivorNames[Random.Range(0, GameData.SurvivorNames.Length)];
+            var v = SpawnSurvivor(nextSurvivorId++, name, skills[Random.Range(0, skills.Length)], new Vector3(Random.Range(-1f, 1f), 0f, 62f));
+            v.ArriveAt(new Vector3(2.5f, 0f, 24f));
+            Visitor = v;
+            visitorTimeout = 90f;
+            Notify($"A survivor named {name} is walking up the road!", Palette.UiGold, 6f);
+            FX.Play(Sfx.Warn, 0.35f);
+        }
+
+        public void AcceptVisitor()
+        {
+            if (!Visitor) return;
+            if (Survivors.Count >= Beds) { Notify("No free bed - upgrade the Bunkhouse first.", Palette.UiRed); FX.Play(Sfx.Error, 0.4f); return; }
+            var s = Visitor;
+            Visitor = null;
+            s.Join(s.Skill);
+            AddXp(10);
+            Notify($"{s.PersonName} joined your farm as a {GameData.JobName(s.Skill)}! They eat {GameData.FoodPerSurvivor} food every morning.", Palette.UiGreen, 7f);
+            FX.Play(Sfx.Catch, 0.5f);
+            FX.Text(s.transform.position + Vector3.up * 2.5f, "Joined!", Palette.UiGreen, 1.2f);
+        }
+
+        public void DeclineVisitor(bool timedOut = false)
+        {
+            if (!Visitor) return;
+            var s = Visitor;
+            Visitor = null;
+            Notify(timedOut ? $"{s.PersonName} gave up waiting and moved on." : $"{s.PersonName} moves on down the road.", Palette.UiWhite);
+            s.LeaveFarm();
+        }
+
+        public void DismissSurvivor(Survivor s)
+        {
+            if (!s) return;
+            Notify($"{s.PersonName} leaves the farm.", Palette.UiWhite);
+            s.LeaveFarm();
+        }
+
+        /// <summary>Every morning each survivor eats. Hungry survivors lose morale; at 0 morale they leave.</summary>
+        void FeedSurvivors()
+        {
+            if (Survivors.Count == 0) return;
+            Product[] order = { Product.Meal, Product.Pumpkin, Product.Corn, Product.Carrot, Product.Wheat, Product.Egg, Product.Milk, Product.GoatMilk };
+            int fed = 0, hungry = 0;
+            foreach (var s in Survivors.ToArray())
+            {
+                if (!s) continue;
+                int need = GameData.FoodPerSurvivor;
+                foreach (var p in order)
+                    while (need > 0 && Inventory[(int)p] > 0)
+                    {
+                        Inventory[(int)p]--;
+                        need -= GameData.FoodValue[p];
+                    }
+                if (need <= 0)
+                {
+                    fed++;
+                    s.Morale = Mathf.Min(100f, s.Morale + 8f);
+                }
+                else
+                {
+                    hungry++;
+                    s.Morale -= 30f;
+                    if (s.Morale <= 0f)
+                    {
+                        Notify($"{s.PersonName} was too hungry and left the farm.", Palette.UiRed, 7f);
+                        s.LeaveFarm();
+                    }
+                }
+            }
+            if (hungry > 0) Notify($"Not enough food! {hungry} survivor(s) went hungry - grow crops or cook meals.", Palette.UiRed, 7f);
+            else Notify($"Breakfast: {fed} survivor(s) ate. Food left: {FoodPoints}.", Palette.UiWhite, 5f);
+        }
+
+        public void UpgradeBunkhouse()
+        {
+            if (BunkLevel >= GameData.BunkUpgradeCost.Length) return;
+            if (!Spend(GameData.BunkUpgradeCost[BunkLevel])) return;
+            BunkLevel++;
+            AddXp(15);
+            Notify($"Bunkhouse upgraded: {Beds} beds.", Palette.UiGreen, 5f);
+            FX.Play(Sfx.Coin, 0.5f);
+            FX.Text(BunkhouseDoor + Vector3.up * 4f, $"{Beds} beds!", Palette.UiGreen, 1.2f);
+        }
+
+        public void UpgradeBarn()
+        {
+            if (BarnLevel >= GameData.BarnUpgradeCost.Length) return;
+            if (!Spend(GameData.BarnUpgradeCost[BarnLevel])) return;
+            BarnLevel++;
+            AddXp(15);
+            Notify($"Barn storage upgraded: +{GameData.BarnStoragePerLevel} space (total storage {StorageCapacity}).", Palette.UiGreen, 5f);
+            FX.Play(Sfx.Coin, 0.5f);
         }
 
         // ================= Lamp posts =================

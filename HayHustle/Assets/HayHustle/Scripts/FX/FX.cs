@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace HayHustle
 {
-    public enum Sfx { Pickup, Water, Plant, Hit, Whoosh, Catch, Warn, Coin, Error, Grab, Lost, RankUp, Click }
+    public enum Sfx { Pickup, Water, Plant, Hit, Whoosh, Catch, Warn, Coin, Error, Grab, Lost, RankUp, Click, Groan }
 
     public class Popup
     {
@@ -83,6 +83,7 @@ namespace HayHustle
             clips[Sfx.Error]  = Make("error", 0.2f, t => Sq(140f, t) * 0.4f);
             clips[Sfx.Grab]   = Make("grab", 0.3f, t => Sq(Mathf.Lerp(700f, 200f, t / 0.3f), t) * 0.4f);
             clips[Sfx.Lost]   = Make("lost", 0.6f, t => Sine(Notes(t, 0.2f, 392f, 330f, 262f), t));
+            clips[Sfx.Groan]  = Make("groan", 1.1f, t => (Sweep(110f, 70f, 1.1f, t) * 0.6f + Noise() * 0.25f) * Mathf.Sin(Mathf.PI * t / 1.1f) * (0.8f + 0.2f * Mathf.Sin(t * 30f)));
         }
 
         static AudioClip Make(string name, float dur, System.Func<float, float> wave)
