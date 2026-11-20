@@ -1,0 +1,248 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace HayHustle
+{
+    // NOTE: only ADD new values at the END of these enums - save files store them as numbers.
+    public enum AnimalKind { Chicken, Sheep, Cow, Goat, Pig, Turkey, Llama }
+    public enum Product { Egg, Wool, Milk, Cake, Yarn, Butter, GoatMilk, Cheese, Truffle, Feather, Pillow, LlamaWool, Coat }
+    public enum PredatorKind { Fox, Hawk, Wolf, Snake, Rat, Bear }
+    public enum HelperKind { Cat, Dog }
+    public enum Stage { Baby, Adult, Prime }
+    public enum CharacterChoice { Boy, Girl }
+
+    public class AnimalDef
+    {
+        public AnimalKind Kind;
+        public string Name, Plural, BabyName, RareName, Perk;
+        public int UnlockRank;
+        public int BabyPrice, AdultPrice, SellBase;
+        public Product Produces;
+        public float ProduceTime;      // seconds per product when well fed
+        public float GrowTime;         // seconds from baby to adult
+        public float HungerPerSecond;  // how fast the hunger bar drops (1 = full bar)
+        public float FoodValue;        // hunger restored per unit of grass eaten
+        public float Speed;
+    }
+
+    public class ProductDef
+    {
+        public Product Product;
+        public string Name;
+        public int Price;
+        public float SpoilTime;        // seconds before it spoils if left on the ground
+        public int UnlockRank;
+    }
+
+    public class RecipeDef
+    {
+        public string Building;
+        public Product Input;
+        public int InputAmount;
+        public Product Output;
+        public float Time;
+        public int UnlockRank;
+        public Vector3 Position;
+        public Color Wall, Roof;
+    }
+
+    public class PredatorDef
+    {
+        public PredatorKind Kind;
+        public string Name;
+        public int Hits;               // net hits needed to catch it
+        public float Speed, FleeSpeed;
+        public AnimalKind[] Targets;
+        public bool Flying, NightOnly;
+        public int Bounty;             // coins when caught (sold to the zoo)
+        public int MinRank;
+    }
+
+    public class HelperDef
+    {
+        public HelperKind Kind;
+        public string Name, Description;
+        public int Price, UnlockRank, Max;
+        public float Speed, HitInterval;
+        public PredatorKind[] Hunts;
+    }
+
+    /// <summary>All tunable game numbers live here.</summary>
+    public static class GameData
+    {
+        public const int MaxRank = 20;
+        public const int StartCoins = 300;
+        public const int BarnUnlockRank = 4;
+        public static readonly int ProductCount = System.Enum.GetValues(typeof(Product)).Length;
+
+        public static readonly Dictionary<AnimalKind, AnimalDef> Animals = new Dictionary<AnimalKind, AnimalDef>
+        {
+            [AnimalKind.Chicken] = new AnimalDef
+            {
+                Kind = AnimalKind.Chicken, Name = "Chicken", Plural = "chickens", BabyName = "Chick", RareName = "Golden Hen",
+                Perk = "Bug Eater - grass planted near chickens grows thicker.",
+                UnlockRank = 1, BabyPrice = 40, AdultPrice = 100, SellBase = 60,
+                Produces = Product.Egg, ProduceTime = 20f, GrowTime = 60f,
+                HungerPerSecond = 1f / 90f, FoodValue = 3f, Speed = 1.6f
+            },
+            [AnimalKind.Sheep] = new AnimalDef
+            {
+                Kind = AnimalKind.Sheep, Name = "Sheep", Plural = "sheep", BabyName = "Lamb", RareName = "Cloud Sheep",
+                Perk = "Flock Alarm - adult sheep hear predators early (+1.5s warning).",
+                UnlockRank = 3, BabyPrice = 150, AdultPrice = 350, SellBase = 220,
+                Produces = Product.Wool, ProduceTime = 30f, GrowTime = 90f,
+                HungerPerSecond = 1f / 75f, FoodValue = 1.5f, Speed = 1.4f
+            },
+            [AnimalKind.Cow] = new AnimalDef
+            {
+                Kind = AnimalKind.Cow, Name = "Cow", Plural = "cows", BabyName = "Calf", RareName = "Brave Cow",
+                Perk = "Fertilizer - grass regrows wherever cows stand.",
+                UnlockRank = 5, BabyPrice = 400, AdultPrice = 900, SellBase = 600,
+                Produces = Product.Milk, ProduceTime = 35f, GrowTime = 120f,
+                HungerPerSecond = 1f / 60f, FoodValue = 1f, Speed = 1.2f
+            },
+            [AnimalKind.Goat] = new AnimalDef
+            {
+                Kind = AnimalKind.Goat, Name = "Goat", Plural = "goats", BabyName = "Kid", RareName = "Mountain Goat",
+                Perk = "Headbutt - knocks away snakes and rats that come close.",
+                UnlockRank = 7, BabyPrice = 300, AdultPrice = 650, SellBase = 420,
+                Produces = Product.GoatMilk, ProduceTime = 30f, GrowTime = 100f,
+                HungerPerSecond = 1f / 70f, FoodValue = 1.3f, Speed = 1.5f
+            },
+            [AnimalKind.Pig] = new AnimalDef
+            {
+                Kind = AnimalKind.Pig, Name = "Pig", Plural = "pigs", BabyName = "Piglet", RareName = "Truffle King",
+                Perk = "Scrap Eater - cleans up spoiled goods, so fewer rats come.",
+                UnlockRank = 9, BabyPrice = 450, AdultPrice = 1000, SellBase = 700,
+                Produces = Product.Truffle, ProduceTime = 45f, GrowTime = 120f,
+                HungerPerSecond = 1f / 55f, FoodValue = 1f, Speed = 1.1f
+            },
+            [AnimalKind.Turkey] = new AnimalDef
+            {
+                Kind = AnimalKind.Turkey, Name = "Turkey", Plural = "turkeys", BabyName = "Poult", RareName = "Royal Turkey",
+                Perk = "Gobble Scare - hawks won't dive near adult turkeys.",
+                UnlockRank = 11, BabyPrice = 500, AdultPrice = 1100, SellBase = 750,
+                Produces = Product.Feather, ProduceTime = 35f, GrowTime = 110f,
+                HungerPerSecond = 1f / 65f, FoodValue = 1.4f, Speed = 1.3f
+            },
+            [AnimalKind.Llama] = new AnimalDef
+            {
+                Kind = AnimalKind.Llama, Name = "Llama", Plural = "llamas", BabyName = "Cria", RareName = "Snow Llama",
+                Perk = "Guardian - kicks foxes, wolves and bears that come near.",
+                UnlockRank = 14, BabyPrice = 1200, AdultPrice = 2500, SellBase = 1800,
+                Produces = Product.LlamaWool, ProduceTime = 50f, GrowTime = 150f,
+                HungerPerSecond = 1f / 60f, FoodValue = 1f, Speed = 1.3f
+            },
+        };
+
+        public static readonly Dictionary<Product, ProductDef> Products = new Dictionary<Product, ProductDef>
+        {
+            [Product.Egg]       = new ProductDef { Product = Product.Egg,       Name = "Egg",        Price = 10,  SpoilTime = 45f,  UnlockRank = 1 },
+            [Product.Cake]      = new ProductDef { Product = Product.Cake,      Name = "Cake",       Price = 60,  SpoilTime = 60f,  UnlockRank = 2 },
+            [Product.Wool]      = new ProductDef { Product = Product.Wool,      Name = "Wool",       Price = 30,  SpoilTime = 90f,  UnlockRank = 3 },
+            [Product.Yarn]      = new ProductDef { Product = Product.Yarn,      Name = "Yarn",       Price = 110, SpoilTime = 60f,  UnlockRank = 3 },
+            [Product.Milk]      = new ProductDef { Product = Product.Milk,      Name = "Milk",       Price = 45,  SpoilTime = 45f,  UnlockRank = 5 },
+            [Product.Butter]    = new ProductDef { Product = Product.Butter,    Name = "Butter",     Price = 160, SpoilTime = 60f,  UnlockRank = 5 },
+            [Product.GoatMilk]  = new ProductDef { Product = Product.GoatMilk,  Name = "Goat Milk",  Price = 55,  SpoilTime = 45f,  UnlockRank = 7 },
+            [Product.Cheese]    = new ProductDef { Product = Product.Cheese,    Name = "Cheese",     Price = 200, SpoilTime = 60f,  UnlockRank = 7 },
+            [Product.Truffle]   = new ProductDef { Product = Product.Truffle,   Name = "Truffle",    Price = 150, SpoilTime = 60f,  UnlockRank = 9 },
+            [Product.Feather]   = new ProductDef { Product = Product.Feather,   Name = "Feather",    Price = 40,  SpoilTime = 90f,  UnlockRank = 11 },
+            [Product.Pillow]    = new ProductDef { Product = Product.Pillow,    Name = "Pillow",     Price = 220, SpoilTime = 60f,  UnlockRank = 11 },
+            [Product.LlamaWool] = new ProductDef { Product = Product.LlamaWool, Name = "Llama Wool", Price = 120, SpoilTime = 120f, UnlockRank = 14 },
+            [Product.Coat]      = new ProductDef { Product = Product.Coat,      Name = "Luxury Coat",Price = 500, SpoilTime = 60f,  UnlockRank = 14 },
+        };
+
+        public static readonly List<RecipeDef> Recipes = new List<RecipeDef>
+        {
+            new RecipeDef { Building = "Bakery", Input = Product.Egg, InputAmount = 2, Output = Product.Cake, Time = 15f, UnlockRank = 2,
+                Position = new Vector3(-12f, 0f, 14f), Wall = new Color(0.93f, 0.85f, 0.7f), Roof = new Color(0.55f, 0.22f, 0.15f) },
+            new RecipeDef { Building = "Weaving Mill", Input = Product.Wool, InputAmount = 1, Output = Product.Yarn, Time = 20f, UnlockRank = 3,
+                Position = new Vector3(12f, 0f, 14f), Wall = new Color(0.75f, 0.82f, 0.88f), Roof = new Color(0.25f, 0.3f, 0.4f) },
+            new RecipeDef { Building = "Dairy", Input = Product.Milk, InputAmount = 1, Output = Product.Butter, Time = 25f, UnlockRank = 5,
+                Position = new Vector3(-19f, 0f, -4f), Wall = new Color(0.96f, 0.96f, 0.94f), Roof = new Color(0.2f, 0.4f, 0.65f) },
+            new RecipeDef { Building = "Cheese Maker", Input = Product.GoatMilk, InputAmount = 2, Output = Product.Cheese, Time = 30f, UnlockRank = 7,
+                Position = new Vector3(-20f, 0f, 6f), Wall = new Color(0.98f, 0.9f, 0.55f), Roof = new Color(0.45f, 0.3f, 0.15f) },
+            new RecipeDef { Building = "Pillow Factory", Input = Product.Feather, InputAmount = 3, Output = Product.Pillow, Time = 30f, UnlockRank = 11,
+                Position = new Vector3(-19f, 0f, -14f), Wall = new Color(0.9f, 0.8f, 0.9f), Roof = new Color(0.4f, 0.25f, 0.45f) },
+            new RecipeDef { Building = "Tailor", Input = Product.LlamaWool, InputAmount = 2, Output = Product.Coat, Time = 45f, UnlockRank = 14,
+                Position = new Vector3(20f, 0f, -17f), Wall = new Color(0.82f, 0.7f, 0.55f), Roof = new Color(0.2f, 0.2f, 0.22f) },
+        };
+
+        public static readonly Dictionary<PredatorKind, PredatorDef> Predators = new Dictionary<PredatorKind, PredatorDef>
+        {
+            [PredatorKind.Fox] = new PredatorDef { Kind = PredatorKind.Fox, Name = "Fox", Hits = 3, Speed = 4.2f, FleeSpeed = 5f,
+                Targets = new[] { AnimalKind.Chicken, AnimalKind.Turkey }, Bounty = 40, MinRank = 1 },
+            [PredatorKind.Hawk] = new PredatorDef { Kind = PredatorKind.Hawk, Name = "Hawk", Hits = 2, Speed = 5f, FleeSpeed = 6f,
+                Targets = new[] { AnimalKind.Chicken }, Flying = true, Bounty = 50, MinRank = 2 },
+            [PredatorKind.Wolf] = new PredatorDef { Kind = PredatorKind.Wolf, Name = "Wolf", Hits = 6, Speed = 3.6f, FleeSpeed = 4.2f,
+                Targets = new[] { AnimalKind.Sheep, AnimalKind.Cow, AnimalKind.Goat }, NightOnly = true, Bounty = 120, MinRank = 3 },
+            [PredatorKind.Snake] = new PredatorDef { Kind = PredatorKind.Snake, Name = "Snake", Hits = 2, Speed = 1.8f, FleeSpeed = 2.4f,
+                Targets = new[] { AnimalKind.Chicken }, Bounty = 60, MinRank = 6 },
+            [PredatorKind.Rat] = new PredatorDef { Kind = PredatorKind.Rat, Name = "Rat", Hits = 1, Speed = 3.2f, FleeSpeed = 4f,
+                Targets = new AnimalKind[0], Bounty = 15, MinRank = 10 },
+            [PredatorKind.Bear] = new PredatorDef { Kind = PredatorKind.Bear, Name = "Bear", Hits = 12, Speed = 3.0f, FleeSpeed = 3.5f,
+                Targets = new[] { AnimalKind.Cow, AnimalKind.Pig, AnimalKind.Goat, AnimalKind.Sheep }, NightOnly = true, Bounty = 400, MinRank = 15 },
+        };
+
+        public static readonly Dictionary<HelperKind, HelperDef> Helpers = new Dictionary<HelperKind, HelperDef>
+        {
+            [HelperKind.Cat] = new HelperDef { Kind = HelperKind.Cat, Name = "Cat", Price = 300, UnlockRank = 6, Max = 2,
+                Description = "Guards the warehouse. Catches rats and finds snakes hiding in the grass.",
+                Speed = 6f, HitInterval = 0.6f, Hunts = new[] { PredatorKind.Rat, PredatorKind.Snake } },
+            [HelperKind.Dog] = new HelperDef { Kind = HelperKind.Dog, Name = "Guard Dog", Price = 900, UnlockRank = 8, Max = 2,
+                Description = "Patrols the pasture. Chases and bites foxes, wolves and bears.",
+                Speed = 6.5f, HitInterval = 0.8f, Hunts = new[] { PredatorKind.Fox, PredatorKind.Wolf, PredatorKind.Bear } },
+        };
+
+        public static int XpToReach(int rank) => 40 * (rank - 1) * (rank - 1);
+
+        public static int RankFromXp(int xp)
+        {
+            int r = 1;
+            while (r < MaxRank && xp >= XpToReach(r + 1)) r++;
+            return r;
+        }
+
+        public static string ProductName(Product p) => Products[p].Name;
+
+        public static int SellPrice(Animal a)
+        {
+            var d = Animals[a.Kind];
+            float m = a.Stage == Stage.Baby ? 0.4f : a.Stage == Stage.Prime ? 1.6f : 1f;
+            if (a.Hunger < 0.35f) m *= 0.6f;   // hungry animals sell for less
+            if (a.Rare) m *= 5f;
+            return Mathf.Max(1, Mathf.RoundToInt(d.SellBase * m));
+        }
+    }
+
+    public static class Palette
+    {
+        public static readonly Color Grass = new Color(0.34f, 0.54f, 0.22f);
+        public static readonly Color GrassLush = new Color(0.27f, 0.6f, 0.18f);
+        public static readonly Color GrassShort = new Color(0.55f, 0.62f, 0.28f);
+        public static readonly Color Soil = new Color(0.4f, 0.29f, 0.18f);
+        public static readonly Color Dirt = new Color(0.56f, 0.46f, 0.33f);
+        public static readonly Color Road = new Color(0.45f, 0.41f, 0.36f);
+        public static readonly Color Wood = new Color(0.52f, 0.36f, 0.2f);
+        public static readonly Color DarkWood = new Color(0.32f, 0.21f, 0.12f);
+        public static readonly Color BarnRed = new Color(0.62f, 0.13f, 0.1f);
+        public static readonly Color Roof = new Color(0.28f, 0.25f, 0.24f);
+        public static readonly Color Stone = new Color(0.56f, 0.55f, 0.52f);
+        public static readonly Color White = new Color(0.95f, 0.94f, 0.9f);
+        public static readonly Color Black = new Color(0.08f, 0.08f, 0.08f);
+        public static readonly Color Red = new Color(0.85f, 0.12f, 0.1f);
+        public static readonly Color Orange = new Color(0.95f, 0.55f, 0.1f);
+        public static readonly Color Gold = new Color(1f, 0.8f, 0.2f);
+        public static readonly Color Pink = new Color(0.95f, 0.66f, 0.66f);
+        public static readonly Color Leaf = new Color(0.18f, 0.38f, 0.15f);
+        public static readonly Color Straw = new Color(0.86f, 0.72f, 0.38f);
+        public static readonly Color Skin = new Color(0.93f, 0.75f, 0.6f);
+        public static readonly Color Jeans = new Color(0.22f, 0.32f, 0.55f);
+        public static readonly Color Hair = new Color(0.35f, 0.2f, 0.1f);
+
+        public static readonly Color UiGreen = new Color(0.5f, 0.95f, 0.45f);
+        public static readonly Color UiRed = new Color(1f, 0.42f, 0.36f);
+        public static readonly Color UiGold = new Color(1f, 0.84f, 0.3f);
+        public static readonly Color UiWhite = new Color(0.95f, 0.95f, 0.95f);
+    }
+}

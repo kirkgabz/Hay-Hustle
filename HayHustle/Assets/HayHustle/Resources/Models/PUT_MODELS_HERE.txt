@@ -1,0 +1,18 @@
+Drop realistic 3D model PREFABS in this folder to replace the placeholder shapes.
+The game loads them automatically by name (no code changes needed):
+
+  Characters : FarmerBoy, FarmerGirl
+  Animals    : Chicken, Sheep, Cow
+  Rare       : RareChicken (Golden Hen), RareSheep (Cloud Sheep), RareCow (Brave Cow)
+  Predators  : Fox, Hawk, Wolf
+  Products   : Egg, Wool, Milk
+
+Rules for each prefab:
+  - Faces forward along +Z (blue arrow in Unity)
+  - Pivot at the feet / ground
+  - Real-world size in meters (chicken ~0.5 m tall, cow ~1.5 m, person ~1.8 m)
+  - If it has an Animator, its default state should be a walk or idle loop
+  - Use URP materials (Edit > Rendering > Materials > Convert to URP if they look pink)
+
+Where to get models: Unity Asset Store (search "realistic farm animals", "fox wolf animated"),
+Mixamo.com (free realistic humans + animations for FarmerBoy / FarmerGirl).

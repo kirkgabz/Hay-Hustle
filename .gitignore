@@ -1,0 +1,28 @@
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+*.csproj
+*.sln
+*.suo
+*.user
+*.pidb
+*.booproj
+*.apk
+*.aab
+.vs/
+.idea/
+
+# Secrets
+.env
+*.keystore
+*.slnx
+.vscode/
+
+# Working copy of the scripts; the Unity project (HayHustle/Assets/HayHustle) is the real source
+GameSource/
