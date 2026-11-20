@@ -289,12 +289,12 @@ namespace HayHustle
             Row(row);
             Lbl(new Rect(row.x + 16, row.y + 10, 600, 32), $"<b>Lamp post</b>   <color=#AAAAAA>built: {gm.Lamps}/{GameData.MaxLamps}</color>", label);
             Lbl(new Rect(row.x + 16, row.y + 48, row.width - 340, 92),
-                "Turns on by itself at night with a warm light. Predators move 40% slower near a lit lamp and leave animals in the light alone when they can. " +
-                "Lamps are built around the Chicken Run first, then the yard, then your other fields.", wrap);
+                "Turns on by itself at 18:00 and off at 06:00. Predators move 40% slower near a lit lamp and leave animals in the light alone when they can. " +
+                "You choose where it goes: click a spot on your farm. Click a lamp post later to move it.", wrap);
             if (gm.Lamps >= GameData.MaxLamps)
                 Lbl(new Rect(row.xMax - 300, row.y + 50, 290, 36), "<color=#AAAAAA>All lamp spots are used</color>", small);
             else if (Btn(new Rect(row.xMax - 300, row.y + 46, 284, 54), $"Buy lamp - {GameData.LampPrice} coins", bigButton))
-                Confirm("Buy a lamp post?", $"Pay {GameData.LampPrice} coins. It is built at the next free spot around your farm and lights up every night.", "Buy lamp", gm.BuyLamp);
+                Confirm("Buy a lamp post?", $"Next, click where you want it on your farm (inside the wall). You pay {GameData.LampPrice} coins when it is placed. Esc cancels.", "Choose a spot", gm.BuyLamp);
             y += 166;
             Lbl(new Rect(area.x, y, area.width, 60), "<color=#AAAAAA>Your farmer also carries a lantern at night. It switches on by itself.</color>", wrap);
         }

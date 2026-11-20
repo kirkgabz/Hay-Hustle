@@ -10,7 +10,6 @@ namespace HayHustle
         public bool Owned;
         public Transform Root;
         public FieldSign Sign;
-        public FieldGate GateObj;
         public readonly List<GrassPatch> Grass = new List<GrassPatch>();
 
         public int Index => Def.Index;
@@ -34,7 +33,7 @@ namespace HayHustle
             Center.x - (Def.Cols - 1) * 1.25f + ix * 2.5f, 0f,
             Center.z - (Def.Rows - 1) * 1.25f + iz * 2.5f);
 
-        /// <summary>The gate is in the middle of the north side.</summary>
+        /// <summary>The entrance (an opening in the fence) is in the middle of the north side.</summary>
         public Vector3 Gate => new Vector3(Center.x, 0f, Center.z + HalfZ);
     }
 }

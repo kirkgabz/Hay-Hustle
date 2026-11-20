@@ -110,6 +110,11 @@ namespace HayHustle
                 else if (kb.enterKey.wasPressedThisFrame) DoConfirm();
                 return;
             }
+            if (LampPlacer.Active)
+            {
+                if (kb.escapeKey.wasPressedThisFrame) { LampPlacer.Cancel(); gm.Notify("Lamp placement cancelled.", Palette.UiWhite); }
+                return;
+            }
             if (kb.bKey.wasPressedThisFrame) Toggle(Panel.Shop);
             if (kb.rKey.wasPressedThisFrame) Toggle(Panel.Rewards);
             if (kb.oKey.wasPressedThisFrame) Toggle(Panel.Orders);
@@ -643,7 +648,8 @@ namespace HayHustle
             var p = gm.Player;
             if (!p || Open != Panel.None) return;
             string text = null;
-            if (p.Busy) text = p.BusyLabel;
+            if (LampPlacer.Active) text = $"<color=#{Hex(Palette.UiGold)}>{LampPlacer.Hint}</color>";
+            else if (p.Busy) text = p.BusyLabel;
             else if (!string.IsNullOrEmpty(p.Activity)) text = $"<color=#{Hex(Palette.UiGreen)}>{p.Activity}</color>";
             else if (p.Focus != null)
                 text = p.Focus.CanInteract
@@ -736,7 +742,7 @@ namespace HayHustle
             }
         }
 
-        /// <summary>Name and animal count above each owned field's gate, e.g. "Chicken Run  12/30".</summary>
+        /// <summary>Name and animal count above each owned field's entrance, e.g. "Chicken Run  12/30".</summary>
         void DrawFieldLabels(GameManager gm, Camera cam)
         {
             foreach (var f in gm.Fields)
@@ -759,6 +765,8 @@ namespace HayHustle
                 if (!w || !ToGui(cam, w.transform.position + Vector3.up * 2.35f, out var g)) continue;
                 ShadowLabel(new Rect(g.x - 150, g.y - 22, 300, 20), w.Def.Name, tagStyle, new Color(0.75f, 1f, 0.7f));
                 ShadowLabel(new Rect(g.x - 150, g.y - 4, 300, 20), w.Status, tagStyle, new Color(0.9f, 0.9f, 0.88f));
+                if (w.Health < 99f)
+                    Bar(new Rect(g.x - 25, g.y + 16, 50, 6), w.Health / 100f, w.Health < GameData.GuardRetreatHealth ? Palette.UiRed : Palette.UiGreen);
             }
             var people = new List<Survivor>(gm.Survivors);
             if (gm.Visitor) people.Add(gm.Visitor);
@@ -781,7 +789,7 @@ namespace HayHustle
                 if (!gate || gate.Hp >= GameData.GateMaxHp) continue;
                 if (!ToGui(cam, gate.transform.position + Vector3.up * 1.6f, out var g)) continue;
                 bool broken = !gate.Intact;
-                string text = broken ? "GATE BROKEN - click to repair" : $"Gate {gate.Hp:0}/{GameData.GateMaxHp:0}";
+                string text = broken ? "FARM GATE BROKEN - click to repair" : $"Farm gate {gate.Hp:0}/{GameData.GateMaxHp:0}";
                 ShadowLabel(new Rect(g.x - 160, g.y - 26, 320, 22), text, barStyle, broken ? Palette.UiRed : Color.white);
                 Bar(new Rect(g.x - 40, g.y, 80, 9), gate.Hp / GameData.GateMaxHp, broken ? Palette.UiRed : new Color(0.95f, 0.7f, 0.2f));
             }

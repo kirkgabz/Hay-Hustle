@@ -80,7 +80,7 @@ namespace HayHustle
         public readonly List<CropPlot> CropPlots = new List<CropPlot>();
         public readonly List<ChoppableTree> Trees = new List<ChoppableTree>();
         public Survivor Visitor { get; private set; }
-        public FieldGate CropGate;
+        public FieldGate FarmGate;   // the one gate in the wall around the whole farm
         public Vector3 CropFieldCenter, BunkhouseDoor;
         public readonly List<GrassPatch> Grass = new List<GrassPatch>();
         public readonly List<Note> Notes = new List<Note>();
@@ -253,7 +253,6 @@ namespace HayHustle
                     if (fs.index < 0 || fs.index >= Fields.Count) continue;
                     var f = Fields[fs.index];
                     if (fs.owned && !f.Owned) WorldBuilder.BuildField(this, f);
-                    if (f.GateObj) f.GateObj.SetHp(GameData.GateMaxHp - fs.gateDamage);
                     if (fs.grass != null)
                         for (int i = 0; i < Mathf.Min(f.Grass.Count, fs.grass.Length); i++) f.Grass[i].SetAmount(fs.grass[i]);
                 }
@@ -288,7 +287,10 @@ namespace HayHustle
             Traps = 0;
             for (int i = 0; i < Mathf.Min(d.traps, GameData.MaxTraps); i++) { Traps++; PlaceTrap(); }
             Lamps = 0;
-            for (int i = 0; i < Mathf.Min(d.lamps, GameData.MaxLamps); i++) { Lamps++; PlaceLamp(); }
+            if (d.lampXZ != null && d.lampXZ.Count >= 2)
+                for (int i = 0; i + 1 < d.lampXZ.Count && Lamps < GameData.MaxLamps; i += 2) { Lamps++; SpawnLamp(new Vector3(d.lampXZ[i], 0f, d.lampXZ[i + 1])); }
+            else
+                for (int i = 0; i < Mathf.Min(d.lamps, GameData.MaxLamps); i++) { Lamps++; PlaceLamp(); }   // older saves
             for (int i = 0; i < d.cats; i++) SpawnHelper(HelperKind.Cat);
             for (int i = 0; i < d.dogs; i++) SpawnHelper(HelperKind.Dog);
             if (d.workers != null)
@@ -309,7 +311,7 @@ namespace HayHustle
             System.Array.Clear(Seeds, 0, Seeds.Length);
             if (d.seeds != null) for (int i = 0; i < Mathf.Min(Seeds.Length, d.seeds.Length); i++) Seeds[i] = d.seeds[i];
             else Seeds[(int)CropKind.Wheat] = 8; // older saves get a starter pack
-            if (CropGate) CropGate.SetHp(GameData.GateMaxHp - d.cropGateDamage);
+            if (FarmGate) FarmGate.SetHp(GameData.GateMaxHp - d.farmGateDamage);
             for (int i = 0; i < CropPlots.Count; i++)
             {
                 var c = d.crops != null && i < d.crops.Count ? d.crops[i] : null;
@@ -398,11 +400,12 @@ namespace HayHustle
                 fenceLevel = FenceLevel,
                 traps = Traps,
                 lamps = Lamps,
+                lampXZ = LampObjects.Where(l => l).SelectMany(l => new[] { l.transform.position.x, l.transform.position.z }).ToList(),
                 bunkLevel = BunkLevel,
                 barnLevel = BarnLevel,
                 farmerCrop = (int)FarmerCrop,
                 nextSurvivorId = nextSurvivorId,
-                cropGateDamage = CropGate ? GameData.GateMaxHp - CropGate.Hp : 0f,
+                farmGateDamage = FarmGate ? GameData.GateMaxHp - FarmGate.Hp : 0f,
                 seeds = (int[])Seeds.Clone(),
                 wood = Wood,
                 guardWeapon = GuardWeaponLevel,
@@ -412,7 +415,7 @@ namespace HayHustle
             if (Truck) for (int i = 0; i < d.inventory.Length; i++) d.inventory[i] += Truck.Cargo[i]; // unsent cargo goes back
             foreach (var f in Fields)
             {
-                var fs = new FieldSave { index = f.Index, owned = f.Owned, grass = new float[f.Grass.Count], gateDamage = f.GateObj ? GameData.GateMaxHp - f.GateObj.Hp : 0f };
+                var fs = new FieldSave { index = f.Index, owned = f.Owned, grass = new float[f.Grass.Count] };
                 for (int i = 0; i < f.Grass.Count; i++) fs.grass[i] = f.Grass[i].Amount;
                 d.fields.Add(fs);
             }
@@ -675,7 +678,7 @@ namespace HayHustle
             JobKind[] skills = { JobKind.Guard, JobKind.Builder, JobKind.Farmer, JobKind.Collector, JobKind.Cook };
             string name = GameData.SurvivorNames[Random.Range(0, GameData.SurvivorNames.Length)];
             var v = SpawnSurvivor(nextSurvivorId++, name, skills[Random.Range(0, skills.Length)], new Vector3(Random.Range(-1f, 1f), 0f, 62f));
-            v.ArriveAt(new Vector3(2.5f, 0f, 24f));
+            v.ArriveAt(new Vector3(2.5f, 0f, GameData.WallMaxZ + 3.5f)); // waits outside the farm gate
             Visitor = v;
             visitorTimeout = 90f;
             Notify($"A survivor named {name} is walking up the road!", Palette.UiGold, 6f);
@@ -807,12 +810,25 @@ namespace HayHustle
 
         // ================= Guards =================
 
-        /// <summary>Where guards defend: every owned field (and the Crop Field) plus 2 plots beyond its fence and gate.</summary>
-        public bool InGuardZone(Vector3 pos)
+        /// <summary>Inside the wall around the farm (margin &gt; 0 also counts that far outside it).</summary>
+        public static bool InsideFarm(Vector3 pos, float margin = 0f) =>
+            pos.x > GameData.WallMinX - margin && pos.x < GameData.WallMaxX + margin &&
+            pos.z > GameData.WallMinZ - margin && pos.z < GameData.WallMaxZ + margin;
+
+        /// <summary>Where guards defend: the whole farm, from the middle out to 2 plots beyond the wall and its gate.</summary>
+        public bool InGuardZone(Vector3 pos) => InsideFarm(pos, GameData.GuardZoneMargin);
+
+        /// <summary>A hurt guard eats one food item from storage to heal. Returns its food points (0 = no food).</summary>
+        public int EatForHealing()
         {
-            foreach (var f in Fields) if (f.Owned && f.Contains(pos, GameData.GuardZoneMargin)) return true;
-            float half = 4 * 1.25f + 0.55f + GameData.GuardZoneMargin;
-            return Mathf.Abs(pos.x - CropFieldCenter.x) <= half && Mathf.Abs(pos.z - CropFieldCenter.z) <= half;
+            Product[] order = { Product.Wheat, Product.Egg, Product.Milk, Product.GoatMilk, Product.Carrot, Product.Corn, Product.Pumpkin, Product.Meal };
+            foreach (var p in order)
+                if (Inventory[(int)p] > 0)
+                {
+                    Inventory[(int)p]--;
+                    return GameData.FoodValue[p];
+                }
+            return 0;
         }
 
         public void UpgradeGuardWeapons()
@@ -868,35 +884,51 @@ namespace HayHustle
             return spots;
         }
 
+        /// <summary>Shop button: the player then clicks where the lamp goes (paid when it is placed).</summary>
         public void BuyLamp()
         {
             if (Lamps >= GameData.MaxLamps) { Notify($"You already have {GameData.MaxLamps} lamp posts.", Palette.UiRed); return; }
-            if (!Spend(GameData.LampPrice)) return;
-            Lamps++;
-            var t = PlaceLamp();
-            FX.Play(Sfx.Coin, 0.5f);
-            if (t) FX.Text(t.position + Vector3.up * 4f, "Lamp post built!", Palette.UiGreen);
-            Notify("A lamp post was built. It lights up at night and keeps predators away.", Palette.UiGreen);
+            if (Coins < GameData.LampPrice) { Notify($"A lamp post costs {GameData.LampPrice} coins.", Palette.UiRed); FX.Play(Sfx.Error, 0.4f); return; }
+            HUD.I.Open = HUD.Panel.None;
+            LampPlacer.BeginNew();
+            Notify("Click where you want the lamp post (inside the farm wall). Esc cancels.", Palette.UiGold, 6f);
         }
 
+        public void BuildLampAt(Vector3 spot)
+        {
+            if (Lamps >= GameData.MaxLamps) return;
+            if (!Spend(GameData.LampPrice)) return;
+            Lamps++;
+            var t = SpawnLamp(spot);
+            FX.Play(Sfx.Coin, 0.5f);
+            FX.Text(t.position + Vector3.up * 4f, "Lamp post built!", Palette.UiGreen);
+            Notify("Lamp post built. It turns on at 18:00 and off at 06:00. Click it any time to move it.", Palette.UiGreen, 6f);
+        }
+
+        Transform SpawnLamp(Vector3 spot)
+        {
+            var go = new GameObject("Lamp Post");
+            go.transform.position = new Vector3(spot.x, 0f, spot.z);
+            var lamp = go.AddComponent<Lamp>();
+            LampObjects.Add(lamp);
+            return go.transform;
+        }
+
+        /// <summary>Older saves only stored how many lamps there were: put them at the old automatic spots.</summary>
         Transform PlaceLamp()
         {
             foreach (var spot in LampSpots())
             {
                 if (LampObjects.Any(l => l && FlatDistance(l.transform.position, spot) < 1f)) continue;
-                var go = new GameObject("Lamp Post");
-                go.transform.position = spot;
-                var lamp = go.AddComponent<Lamp>();
-                LampObjects.Add(lamp);
-                return go.transform;
+                return SpawnLamp(spot);
             }
             return null;
         }
 
-        /// <summary>True at night near a lit lamp post (predators avoid these spots).</summary>
+        /// <summary>True while the lamps are on (18:00-06:00) near a lamp post (predators avoid these spots).</summary>
         public bool NearLitLamp(Vector3 pos)
         {
-            if (!DayNight.IsNight) return false;
+            if (!DayNight.LightsOn) return false;
             foreach (var l in LampObjects)
                 if (l && FlatDistance(l.transform.position, pos) <= GameData.LampRadius) return true;
             return false;

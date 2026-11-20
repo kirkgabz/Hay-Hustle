@@ -36,6 +36,7 @@ namespace HayHustle
             BuildCropField(gm, world);
             BuildBunkhouse(gm, world);
             BuildWoodlot(gm, world);
+            BuildFarmWall(gm, world);
             BuildDecor(world);
             BuildForest(world);
             BuildScatter(world);
@@ -44,7 +45,7 @@ namespace HayHustle
             SetupLightAndCamera(gm);
 
             // Merge scenery that never moves into big batches - much faster on laptop graphics.
-            foreach (var name in new[] { "Forest", "Decor", "Scatter", "Path" })
+            foreach (var name in new[] { "Forest", "Decor", "Scatter", "Path", "Farm Wall" })
             {
                 var t = world.Find(name);
                 if (t) StaticBatchingUtility.Combine(t.gameObject);
@@ -65,6 +66,8 @@ namespace HayHustle
             if (p.x > -32f && p.x < 20f && p.z > 15f && p.z < 33f) return false;   // crop field, kitchen, bunkhouse
             if (Mathf.Abs(p.x) > 15f && Mathf.Abs(p.x) < 30f && p.z > -48f && p.z < -21f) return false; // tree groves
             if (p.x < -14f && p.x > -26f && p.z > -19f && p.z < 10f) return false;  // west buildings
+            if (Mathf.Abs(p.x - GameData.WallMinX) < 2f || Mathf.Abs(p.x - GameData.WallMaxX) < 2f ||
+                Mathf.Abs(p.z - GameData.WallMinZ) < 2f || Mathf.Abs(p.z - GameData.WallMaxZ) < 2f) return false; // farm wall
             if (p.x > 14f && p.x < 26f && p.z > -21f && p.z < 12f) return false;   // east buildings
             return true;
         }
@@ -214,7 +217,6 @@ namespace HayHustle
                     f.Grass.Clear();
                     if (f.Root) Object.Destroy(f.Root.gameObject);
                     f.Root = null;
-                    f.GateObj = null;
                     f.Owned = false;
                 }
                 if (f.Sign == null) BuildFieldSign(f);
@@ -229,7 +231,7 @@ namespace HayHustle
             f.Root = new GameObject(f.Def.Name).transform;
             f.Root.SetParent(World);
 
-            // Fence with a gate gap in the middle of the north side
+            // Fence with an entrance in the middle of the north side (the farm wall has the only gate)
             var fence = new GameObject("Fence").transform;
             fence.SetParent(f.Root);
             float x0 = f.Center.x - f.HalfX, x1 = f.Center.x + f.HalfX;
@@ -239,13 +241,6 @@ namespace HayHustle
             Rail(fence, new Vector3(x1, 0, z0), new Vector3(x1, 0, z1));
             Rail(fence, new Vector3(x0, 0, z1), new Vector3(f.Center.x - 2f, 0, z1));
             Rail(fence, new Vector3(f.Center.x + 2f, 0, z1), new Vector3(x1, 0, z1));
-
-            // The gate fills the gap. Zombies smash it to reach the animals.
-            var gateGo = new GameObject("Gate");
-            gateGo.transform.SetParent(f.Root);
-            gateGo.transform.position = new Vector3(f.Center.x, 0f, z1);
-            f.GateObj = gateGo.AddComponent<FieldGate>();
-            f.GateObj.Init(f.Def.Name);
 
             for (int ix = 0; ix < f.Def.Cols; ix++)
             for (int iz = 0; iz < f.Def.Rows; iz++)
@@ -328,15 +323,8 @@ namespace HayHustle
             Rail(fence, new Vector3(x0, 0, z1), new Vector3(x1, 0, z1));
             Rail(fence, new Vector3(x0, 0, z0), new Vector3(x0, 0, z1));
             Rail(fence, new Vector3(x1, 0, z0), new Vector3(x1, 0, z1));
-            Rail(fence, new Vector3(x0, 0, z0), new Vector3(c.x - 2f, 0, z0)); // gate gap on the side facing the yard
+            Rail(fence, new Vector3(x0, 0, z0), new Vector3(c.x - 2f, 0, z0)); // entrance on the side facing the yard
             Rail(fence, new Vector3(c.x + 2f, 0, z0), new Vector3(x1, 0, z0));
-
-            var gateGo = new GameObject("Gate");
-            gateGo.transform.SetParent(root);
-            gateGo.transform.position = new Vector3(c.x, 0f, z0);
-            gateGo.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
-            gm.CropGate = gateGo.AddComponent<FieldGate>();
-            gm.CropGate.Init("Crop Field");
 
             for (int ix = 0; ix < 4; ix++)
             for (int iz = 0; iz < 4; iz++)
@@ -352,6 +340,61 @@ namespace HayHustle
             sign.position = new Vector3(c.x + 3.4f, 0f, z0 - 1.3f);
             sign.rotation = Quaternion.Euler(0f, 180f, 0f);
             Models.BuildSign(sign, "Crops");
+        }
+
+        /// <summary>
+        /// The tall wooden wall around the whole farm, with one big gate where the road comes in (north).
+        /// Zombies and predators must break the gate to get in (hawks fly over, snakes and rats slip under).
+        /// </summary>
+        static void BuildFarmWall(GameManager gm, Transform world)
+        {
+            var wall = new GameObject("Farm Wall").transform;
+            wall.SetParent(world);
+            float x0 = GameData.WallMinX, x1 = GameData.WallMaxX, z0 = GameData.WallMinZ, z1 = GameData.WallMaxZ;
+            float g = GameData.FarmGateHalfWidth;
+            WallRun(wall, new Vector3(x0, 0, z0), new Vector3(x1, 0, z0));
+            WallRun(wall, new Vector3(x0, 0, z0), new Vector3(x0, 0, z1));
+            WallRun(wall, new Vector3(x1, 0, z0), new Vector3(x1, 0, z1));
+            WallRun(wall, new Vector3(x0, 0, z1), new Vector3(-g - 0.3f, 0, z1));
+            WallRun(wall, new Vector3(g + 0.3f, 0, z1), new Vector3(x1, 0, z1));
+
+            // Gate frame: two big posts and a beam with the farm's name.
+            foreach (var side in new[] { -1f, 1f })
+            {
+                Visuals.Skin(Visuals.Prim(Cube, wall, new Vector3(side * (g + 0.15f), 1.6f, z1), new Vector3(0.45f, 3.2f, 0.45f), Palette.DarkWood), Palette.DarkWood, Surface.Wood, new Vector2(1f, 3f));
+                Visuals.Prim(Cube, wall, new Vector3(side * (g + 0.15f), 3.25f, z1), new Vector3(0.6f, 0.12f, 0.6f), Palette.Wood);
+            }
+            Visuals.Skin(Visuals.Prim(Cube, wall, new Vector3(0f, 3.0f, z1), new Vector3(g * 2f + 0.9f, 0.4f, 0.32f), Palette.Wood), Palette.Wood, Surface.Wood, new Vector2(4f, 1f));
+            Visuals.Prim(Cube, wall, new Vector3(0f, 3.55f, z1 + 0.05f), new Vector3(3.2f, 0.7f, 0.12f), Palette.Wood);                     // name board
+            Visuals.Prim(Cube, wall, new Vector3(0f, 3.55f, z1 + 0.13f), new Vector3(2.6f, 0.14f, 0.03f), new Color(0.95f, 0.9f, 0.75f));
+            Visuals.Prim(Cube, wall, new Vector3(0f, 3.55f, z1 - 0.03f), new Vector3(2.6f, 0.14f, 0.03f), new Color(0.95f, 0.9f, 0.75f));
+
+            var gateGo = new GameObject("Farm Gate");
+            gateGo.transform.SetParent(world);
+            gateGo.transform.position = new Vector3(0f, 0f, z1);
+            gm.FarmGate = gateGo.AddComponent<FieldGate>();
+            gm.FarmGate.Init("Farm", g);
+        }
+
+        /// <summary>A tall plank wall: thick posts every 2.5 m with four rails and planks between them.</summary>
+        static void WallRun(Transform root, Vector3 a, Vector3 b)
+        {
+            Vector3 d = b - a;
+            float len = d.magnitude;
+            Vector3 mid = (a + b) / 2f;
+            float yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+            Color plank = new Color(0.5f, 0.36f, 0.22f);
+            Visuals.Skin(Visuals.Prim(Cube, root, mid + Vector3.up * 1.05f, new Vector3(0.12f, 1.9f, len), plank, false, new Vector3(0f, yaw, 0f)),
+                plank, Surface.Wood, new Vector2(len / 1.2f, 1f));
+            foreach (float h in new[] { 0.35f, 1.75f })
+                Visuals.Prim(Cube, root, mid + Vector3.up * h, new Vector3(0.22f, 0.16f, len), Palette.DarkWood, false, new Vector3(0f, yaw, 0f));
+            int posts = Mathf.Max(1, Mathf.RoundToInt(len / 2.5f));
+            for (int i = 0; i <= posts; i++)
+            {
+                Vector3 p = Vector3.Lerp(a, b, i / (float)posts);
+                Visuals.Prim(Cube, root, p + Vector3.up * 1.15f, new Vector3(0.3f, 2.3f, 0.3f), Palette.DarkWood);
+                Visuals.Prim(Cube, root, p + Vector3.up * 2.38f, new Vector3(0.18f, 0.2f, 0.18f), Palette.DarkWood, false, new Vector3(0f, 45f, 45f)); // pointed top
+            }
         }
 
         /// <summary>Two groves of choppable trees beside the fields - wood for repairing gates.</summary>

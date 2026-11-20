@@ -93,6 +93,7 @@ namespace HayHustle
                     if (goal == null && state == State.Hunting) goal = AnimalGoal(gm, flat, pos, dt, ref desiredY);
                 }
 
+                if (state == State.Hunting) FightBack(gm, flat);
                 if (state == State.Hunting)
                 {
                     if (goal == null) StartFleeing(flat); // nothing left to take here
@@ -107,7 +108,24 @@ namespace HayHustle
 
             if (state == State.Fleeing)
             {
-                move = escapeDir * Def.FleeSpeed * slow * dt;
+                var exit = ExitPath(flat);
+                if (exit.HasValue)
+                {
+                    Vector3 d = exit.Value - flat;
+                    float dist = d.magnitude;
+                    move = dist > 0.01f ? d / dist * Mathf.Min(dist, Def.FleeSpeed * slow * dt) : Vector3.zero;
+                }
+                else
+                {
+                    if (BlockedByWall)
+                    {
+                        // Outside the wall: run straight away from the farm (never back through the wall).
+                        Vector3 away = flat - GameManager.PastureCenter;
+                        away.y = 0f;
+                        if (away.sqrMagnitude > 0.01f) escapeDir = away.normalized;
+                    }
+                    move = escapeDir * Def.FleeSpeed * slow * dt;
+                }
                 if (Def.Flying) desiredY = CruiseHeight + 2f;
                 if ((flat - GameManager.PastureCenter).magnitude > EscapeRadius)
                 {
@@ -136,7 +154,7 @@ namespace HayHustle
                 retarget = 2f;
             }
             if (target == null) return null;
-            if (!Def.Flying && GameData.GateDps(Kind) > 0f && GateBlocks(gm, target, flat, dt, out var gateGoal)) return gateGoal;
+            if (GateBlocks(gm, target.transform.position, flat, dt, out var gateGoal)) return gateGoal;
 
             Vector3 tp = target.transform.position;
             tp.y = 0f;
@@ -184,7 +202,7 @@ namespace HayHustle
                 Vector3 pp = player.transform.position;
                 pp.y = 0f;
                 float pd = GameManager.FlatDistance(pp, flat);
-                if (pd < 3.5f)
+                if (pd < 3.5f && SameSideOfWall(gm, pp, flat))
                 {
                     if (pd < 1.3f && Time.time >= nextBite)
                     {
@@ -196,13 +214,19 @@ namespace HayHustle
                 }
             }
 
-            Survivor victim = null;
+            Laborer victim = null;
             float vd = 4f;
             foreach (var s in gm.Survivors)
             {
-                if (!s || s.Injured) continue;
+                if (!s || s.Injured || !SameSideOfWall(gm, s.transform.position, flat)) continue;
                 float d = GameManager.FlatDistance(s.transform.position, flat);
                 if (d < vd) { vd = d; victim = s; }
+            }
+            foreach (var w in gm.Workers)   // hired guards can be bitten too
+            {
+                if (!w || w.Job != JobKind.Guard || !SameSideOfWall(gm, w.transform.position, flat)) continue;
+                float d = GameManager.FlatDistance(w.transform.position, flat);
+                if (d < vd) { vd = d; victim = w; }
             }
             if (victim != null)
             {
@@ -225,7 +249,7 @@ namespace HayHustle
             }
             if (target != null)
             {
-                if (GateBlocks(gm, target, flat, dt, out var zGoal)) return zGoal;
+                if (GateBlocks(gm, target.transform.position, flat, dt, out var zGoal)) return zGoal;
                 Vector3 tp = target.transform.position;
                 tp.y = 0f;
                 if (GameManager.FlatDistance(tp, flat) < 0.9f)
@@ -236,38 +260,78 @@ namespace HayHustle
                 return tp;
             }
 
-            FieldGate nearest = null;
-            float gd = float.MaxValue;
-            foreach (var g in gm.Gates)
-            {
-                if (!g || !g.Intact) continue;
-                float d = GameManager.FlatDistance(g.transform.position, flat);
-                if (d < gd) { gd = d; nearest = g; }
-            }
-            return nearest ? AttackGate(nearest, flat, dt) : (Vector3?)null;
+            // Nothing to eat: a zombie outside keeps smashing the farm gate.
+            var fg = gm.FarmGate;
+            if (fg && fg.Intact && !GameManager.InsideFarm(flat)) return AttackGate(fg, flat, dt);
+            return null;
         }
 
+        /// <summary>Foxes, wolves and bears bite back at a guard who is fighting them up close.</summary>
+        void FightBack(GameManager gm, Vector3 flat)
+        {
+            if (Kind == PredatorKind.Zombie || Time.time < nextBite) return;
+            float dmg = Kind switch { PredatorKind.Bear => 14f, PredatorKind.Wolf => 8f, PredatorKind.Fox => 3f, _ => 0f };
+            if (dmg <= 0f) return;
+            if (weak) dmg *= 0.66f;
+            Laborer guard = null;
+            foreach (var w in gm.Workers) if (w && w.Job == JobKind.Guard && GameManager.FlatDistance(w.transform.position, flat) < 1.7f) { guard = w; break; }
+            if (guard == null)
+                foreach (var s in gm.Survivors) if (s && s.Job == JobKind.Guard && GameManager.FlatDistance(s.transform.position, flat) < 1.7f) { guard = s; break; }
+            if (guard == null) return;
+            nextBite = Time.time + 1.8f;
+            guard.Damage(dmg);
+        }
+
+        /// <summary>Hawks fly over the farm wall; snakes and rats slip under it. Everything else needs the gate.</summary>
+        bool BlockedByWall => !Def.Flying && GameData.GateDps(Kind) > 0f;
+
+        bool SameSideOfWall(GameManager gm, Vector3 a, Vector3 b) =>
+            !BlockedByWall || GameManager.InsideFarm(a) == GameManager.InsideFarm(b) || (gm.FarmGate && !gm.FarmGate.Intact);
+
         /// <summary>
-        /// True if the animal is inside a field whose gate is still standing: then walk around the fence to the
-        /// gate and keep hitting it (goal is where to go, or null if this predator gave up and runs away).
+        /// The wall around the farm is solid. A predator outside it walks around the wall to the farm gate:
+        /// while the gate stands it keeps hitting it; once it is broken the predator walks in through it.
+        /// Returns true while it is busy getting in (goal = where to go, or null if it gave up and runs away).
         /// </summary>
-        bool GateBlocks(GameManager gm, Animal a, Vector3 flat, float dt, out Vector3? goal)
+        bool GateBlocks(GameManager gm, Vector3 targetPos, Vector3 flat, float dt, out Vector3? goal)
         {
             goal = null;
-            var field = gm.Fields[Mathf.Clamp(a.Field, 0, gm.Fields.Count - 1)];
-            var gate = field.GateObj;
-            if (!gate || !gate.Intact || field.Contains(flat, 0.3f)) return false;
-            float gateZ = field.Center.z + field.HalfZ;
-            if (flat.z < gateZ + 0.5f)
-            {
-                // The fence is solid: go around it to the gate side (north) instead of through it.
-                float side = flat.x < field.Center.x ? -1f : 1f;
-                float outX = field.Center.x + side * (field.HalfX + 1.5f);
-                goal = Mathf.Abs(flat.x - field.Center.x) < field.HalfX + 1.0f ? new Vector3(outX, 0f, flat.z) : new Vector3(outX, 0f, gateZ + 1.5f);
-                return true;
-            }
-            goal = AttackGate(gate, flat, dt);
+            if (!BlockedByWall || GameManager.InsideFarm(flat) || !GameManager.InsideFarm(targetPos)) return false;
+            goal = PathToGate(flat, out bool atGate);
+            if (!atGate) return true;
+            var gate = gm.FarmGate;
+            if (gate && gate.Intact) { goal = AttackGate(gate, flat, dt); return true; }
+            goal = new Vector3(0f, 0f, GameData.WallMaxZ - 2.5f); // through the broken gate
             return true;
+        }
+
+        /// <summary>Walk around the outside of the wall to the spot in front of the farm gate.</summary>
+        static Vector3 PathToGate(Vector3 flat, out bool atGate)
+        {
+            float x0 = GameData.WallMinX, x1 = GameData.WallMaxX, z0 = GameData.WallMinZ, z1 = GameData.WallMaxZ;
+            Vector3 front = new Vector3(0f, 0f, z1 + 1.3f);
+            atGate = false;
+            if (flat.z > z1 + 0.5f)
+            {
+                // North of the wall: go along it to the gate, then through the opening.
+                if (Mathf.Abs(flat.x) < GameData.FarmGateHalfWidth - 0.5f && flat.z < z1 + 2.2f) atGate = true;
+                return front;
+            }
+            float side = flat.x < 0f ? -1f : 1f;
+            float outX = side > 0f ? x1 + 1.8f : x0 - 1.8f;
+            if (flat.x > x0 - 1.2f && flat.x < x1 + 1.2f)
+                return new Vector3(outX, 0f, flat.z < z0 ? Mathf.Min(flat.z, z0 - 1.8f) : flat.z); // south of the wall: step out sideways
+            return new Vector3(outX, 0f, z1 + 1.8f); // along the side wall up to the north corner
+        }
+
+        /// <summary>Leaving the farm: ground predators inside must go out through the gate.</summary>
+        Vector3? ExitPath(Vector3 flat)
+        {
+            if (!BlockedByWall || !GameManager.InsideFarm(flat)) return null;
+            Vector3 inside = new Vector3(0f, 0f, GameData.WallMaxZ - 2f);
+            if (Mathf.Abs(flat.x) < GameData.FarmGateHalfWidth - 0.5f && flat.z > GameData.WallMaxZ - 2.5f)
+                return new Vector3(flat.x, 0f, GameData.WallMaxZ + 3f);
+            return inside;
         }
 
         /// <summary>Hit the gate again and again. Animals give up after a while; zombies never do.</summary>

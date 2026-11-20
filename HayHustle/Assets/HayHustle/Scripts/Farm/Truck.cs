@@ -15,6 +15,8 @@ namespace HayHustle
         float tripTimer;
         Vector3 home;
         Transform body;
+        /// <summary>Where the truck itself is right now (it drives out through the farm gate).</summary>
+        public Vector3 BodyPosition => body ? body.position : transform.position;
 
         public void Init(Transform truckBody)
         {

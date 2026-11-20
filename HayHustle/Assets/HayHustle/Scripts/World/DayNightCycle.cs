@@ -14,6 +14,8 @@ namespace HayHustle
 
         public float Daylight { get; private set; } = 1f;
         public bool IsNight => Daylight < 0.12f;
+        /// <summary>Lamp posts are on from 18:00 until 06:00.</summary>
+        public bool LightsOn => TimeOfDay >= GameData.LightsOnTime || TimeOfDay < GameData.LightsOffTime;
 
         public string Clock
         {

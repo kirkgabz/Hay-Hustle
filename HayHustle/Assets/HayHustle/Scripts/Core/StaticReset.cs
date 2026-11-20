@@ -16,6 +16,7 @@ namespace HayHustle
             Laborer.ClearClaims();
             Tutorial.Stop();
             Backend.ResetRuntime();
+            LampPlacer.Cancel();
         }
     }
 }

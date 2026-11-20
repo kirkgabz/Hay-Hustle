@@ -120,7 +120,7 @@ namespace HayHustle
             "Bear (Rank 15, night) - 12 hits. Takes big animals.\n\n" +
             "<b>Difficulty</b>: until you hire a <b>Guard</b> (Shop -> Workers, Rank 3), <b>only foxes</b> come, one at a time. " +
             "With a Guard on duty other predators can come too, but they are weak: about half the hits to catch, and slower.\n\n" +
-            "Foxes, wolves and bears must <b>break a field's gate</b> to reach animals inside (see Gates & Wood).\n\n" +
+            "A tall <b>wall</b> goes around the whole farm. Foxes, wolves and bears must <b>break the farm gate</b> to get in (see Gates & Wood).\n\n" +
             "No predators come during the tutorial. Night brings more of them - your farmer carries a lantern.",
 
             // ---------------- Defense ----------------
@@ -135,7 +135,10 @@ namespace HayHustle
             "Goats headbutt snakes and rats. Llamas and the rare Brave Cow kick foxes, wolves and bears. Turkeys keep hawks away. Adult sheep warn you earlier.\n\n" +
             "<b>Guards</b> (Shop -> Workers): hired guards chase and catch predators for you.\n\n" +
             "<b>Lamp posts</b> (Shop -> <b>Lights</b>, 250 each, up to 10)\n" +
-            "Built around your fields and the yard. They light up by themselves at night. Predators move 40% slower near a lit lamp and leave animals in the light alone when they can.",
+            "<b>You choose where it goes</b>: after buying, a see-through lamp follows your mouse with a ring showing how far the light reaches - " +
+            "green = OK, red = not allowed. Click to build it there (you pay when it is placed). <b>Esc</b> cancels.\n" +
+            "Lamps go anywhere inside the farm wall (not in the gateway, not right next to another lamp). <b>Click a lamp post</b> later to move it for free.\n" +
+            "They turn <b>on at 18:00</b> and <b>off at 06:00</b> by themselves. Predators move 40% slower near a lit lamp and leave animals in the light alone when they can.",
 
             // ---------------- Workers ----------------
             "<b>Hire workers</b>: Shop -> <b>Workers</b> -> <b>Hire</b> (confirm).\n" +
@@ -170,7 +173,7 @@ namespace HayHustle
             "Pig Pen - Rank 9, 5000 coins (back left)\n" +
             "Turkey Yard - Rank 11, 6500 coins (back right)\n" +
             "Llama Ridge - Rank 14, 9000 coins (at the back)\n\n" +
-            "A sign over each gate shows how many animals are inside, e.g. \"Chicken Run 3/5\" (red = FULL).\n" +
+            "A sign over each field's entrance shows how many animals are inside, e.g. \"Chicken Run 3/5\" (red = FULL).\n" +
             "Keep the plots planted so your 5 animals never go hungry - or hire a Water Carrier.",
 
             // ---------------- Orders ----------------
@@ -189,33 +192,41 @@ namespace HayHustle
             "From <b>Day 2</b>, zombies shamble out of the forest - in the day and (more of them) at night. You hear a groan when they come.\n" +
             "They are slow but tough: about <b>5 hits</b> (3 when you have defenders). Click a zombie to hit it, like any predator.\n\n" +
             "<b>What zombies do</b>\n" +
-            "They walk around the fence to a field's <b>gate</b> and smash it. A red bar over the gate shows its strength. " +
-            "When the gate breaks they go in and drag an animal away - chase them!\n" +
+            "They walk around the farm wall to the <b>farm gate</b> (where the road comes in) and smash it. A bar over the gate shows its strength. " +
+            "When the gate breaks they walk into the farm and drag an animal away - chase them!\n" +
             "They shove the farmer back (you are never hurt) and bite survivors (survivors get injured, never killed).\n\n" +
             "<b>How to fight back</b>\n" +
-            "<b>Repair gates</b> with wood (see Gates & Wood), or give survivors the <b>Builder</b> job.\n" +
+            "<b>Repair the farm gate</b> with wood (see Gates & Wood), or give survivors the <b>Builder</b> job.\n" +
             "<b>Guards</b> (hired workers or survivors on guard duty), <b>Guard Dogs</b>, <b>traps</b>, <b>lamp posts</b> (zombies are slower in the light), " +
             "and <b>Llamas</b> / the Brave Cow (they kick zombies).\n" +
             "Until you have a defender only one zombie comes at a time; after that, bigger hordes come at night.",
 
             // ---------------- Gates & Wood ----------------
-            "<b>Gates</b>\n" +
-            "Every field has a gate with <b>10,000 health</b>. Zombies, foxes, wolves and bears must break it to reach your animals - " +
-            "they hit it again and again (zombies never stop; animals give up after a while). Hawks fly over, snakes and rats slip through the fence.\n" +
-            "A bar over a damaged gate shows its health. Damage stays until it is repaired.\n\n" +
+            "<b>The farm wall and gate</b>\n" +
+            "A tall wooden wall goes around the <b>whole farm</b>. It has <b>one gate</b>, on the road at the north side, with <b>10,000 health</b>. " +
+            "Fields and the Crop Field have open entrances - the farm gate is what keeps danger out.\n" +
+            "Zombies, foxes, wolves and bears walk around the wall and hit the gate again and again (zombies never stop; animals give up after a while). " +
+            "Once it is broken they walk right in. Hawks fly over the wall, snakes and rats slip under it.\n" +
+            "The gate opens by itself for the truck, you and your people, and stays shut while danger is near.\n" +
+            "A bar over the gate shows its health when it is damaged. Damage stays until it is repaired.\n\n" +
             "<b>Repairing</b>\n" +
             "Repairing adds <b>100 health per minute for each person</b> working on it - two builders = 200 per minute.\n" +
             "It uses <b>wood</b>: 1 wood for every 100 health.\n" +
-            "<b>You</b>: click a damaged gate - your farmer keeps hammering (100 per minute) until you walk away or run out of wood.\n" +
-            "<b>Builders</b> (survivor job): they go to the most damaged gate by themselves and stand side by side to repair it.\n\n" +
+            "<b>You</b>: click the damaged gate - your farmer keeps hammering (100 per minute) until you walk away or run out of wood.\n" +
+            "<b>Builders</b> (survivor job): they go to the farm gate by themselves and stand side by side to repair it.\n\n" +
             "<b>Wood</b>\n" +
             "Two groves of trees grow beside the fields. <b>Click a tree</b> to chop it (5 seconds, +3 wood). " +
             "Builders chop trees by themselves with an axe when the wood runs out. A stump grows back after 3 minutes.\n" +
             "Your wood is shown at the top left (a new farm starts with 10).\n\n" +
             "<b>Guards</b>\n" +
-            "Guards defend their field plus <b>2 plots beyond its fence and gate</b> - they patrol from the middle to the gate and do not chase predators further away.\n" +
+            "Guards defend the whole farm, from the middle out to <b>2 plots beyond the wall and gate</b> - they patrol between their field and the farm gate and do not chase predators further away.\n" +
             "<b>Weapons</b> (Shop -> Workers, or the Camp): Pitchfork -> Machete -> Spear -> Battle Axe -> Flaming Sword. " +
-            "Every guard - hired or survivor - uses the best one you bought. Zoom in (mouse wheel) to see them.",
+            "Every guard - hired or survivor - uses the best one you bought. Zoom in (mouse wheel) to see them.\n\n" +
+            "<b>Guard health</b>\n" +
+            "Zombies, bears, wolves and foxes hurt guards who fight them (a bar under their name shows their health). Guards are never killed.\n" +
+            "Guards <b>heal by themselves</b>, but it <b>costs food</b>: a hurt guard eats one food item from storage (wheat, eggs, milk first, meals last) - " +
+            "1 food point heals 20 health, about 2 health per second.\n" +
+            "Below 30% health a guard stops fighting until healed. <b>No food = no healing</b>, so keep food in storage.",
 
             // ---------------- Survivors ----------------
             "<b>Survivors join your farm</b>\n" +
@@ -224,7 +235,7 @@ namespace HayHustle
             "<b>Camp window</b> (Camp button, C, or click the <b>Bunkhouse</b> next to the road)\n" +
             "See every survivor's health, morale and what they are doing. Click <b>Job</b> to open the list of jobs and pick one. " +
             "Use the <b>Show</b> buttons to filter by job - each shows how many survivors do it, listed by name (A-Z).\n" +
-            "<b>Guard</b> - fights zombies and predators near their field.   <b>Builder</b> - chops trees and repairs gates.\n" +
+            "<b>Guard</b> - fights zombies and predators on the farm.   <b>Builder</b> - chops trees and repairs the farm gate.\n" +
             "<b>Farmer</b> - plants, waters and harvests crops.   <b>Cook</b> - makes meals in the Kitchen.\n" +
             "<b>Collector</b> - picks up goods.   <b>Water Carrier</b> - replants grass.   <b>Off duty</b> - rests.\n" +
             "Survivors work <b>40% faster at their skill</b>. Collectors, Guards and Water Carriers can also be given one field (\"Works in\").\n\n" +

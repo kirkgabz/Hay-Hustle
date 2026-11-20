@@ -94,8 +94,8 @@ Built with **Unity 6 (URP)** and **C#**. PC first, Android later. Backend: **Sup
 
 ### Batch 4 - Zombie survival
 
-- Zombies (day and night from Day 2, hordes at night): smash field gates, drag animals away, shove the farmer, injure survivors
-- Gates with health on every field; click to repair, or a Builder survivor repairs them
+- Zombies (day and night from Day 2, hordes at night): smash the farm gate, drag animals away, shove the farmer, injure survivors
+- A wall around the whole farm with one main gate (10,000 health); repair it with wood (you or Builder survivors)
 - Survivors arrive on the road (Accept / Decline), live in the Bunkhouse, eat food every morning, have morale and health
 - Survivor jobs: Guard, Builder, Farmer, Collector, Cook, Water Carrier, Off duty (40% faster at their skill)
 - Crop Field (Wheat, Carrot, Corn, Pumpkin): plant, water, harvest; Kitchen turns wheat into meals

@@ -13,7 +13,7 @@ namespace HayHustle
         public string PersonName { get; private set; } = "Survivor";
         public JobKind Skill { get; private set; }
         public JobKind AssignedJob { get; private set; } = JobKind.Rest;
-        public float Health = 100f, Morale = 80f;
+        public float Morale = 80f;
         public bool Injured { get; private set; }
         public bool Joined { get; private set; }
 
@@ -21,7 +21,6 @@ namespace HayHustle
         public override JobKind Job => !Joined ? JobKind.Rest : Injured ? JobKind.Rest : AssignedJob;
         protected override float SpeedBonus => Joined && !Injured && AssignedJob == Skill ? 1.4f : 1f;
 
-        float nextHurtText;
 
         public void Init(int id, string name, JobKind skill)
         {
@@ -79,16 +78,10 @@ namespace HayHustle
         }
 
         /// <summary>Zombie attack. Survivors are never killed - at low health they go and rest.</summary>
-        public void Damage(float amount)
+        public override void Damage(float amount)
         {
             if (!Joined) return;
-            Health = Mathf.Max(1f, Health - amount);
-            FX.Burst(transform.position + Vector3.up * 1.2f, new Color(0.7f, 0.1f, 0.1f), 6, 0.06f, 2f);
-            if (Time.time > nextHurtText)
-            {
-                nextHurtText = Time.time + 1f;
-                FX.Text(transform.position + Vector3.up * 2.4f, $"{PersonName} hurt! ({Health:0}%)", Palette.UiRed, 0.9f);
-            }
+            base.Damage(amount);
             if (!Injured && Health <= 25f)
             {
                 Injured = true;

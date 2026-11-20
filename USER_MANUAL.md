@@ -141,7 +141,7 @@ Bear (Rank 15, night) - 12 hits. Takes big animals.
   
 **Difficulty**: until you hire a **Guard** (Shop -> Workers, Rank 3), **only foxes** come, one at a time. With a Guard on duty other predators can come too, but they are weak: about half the hits to catch, and slower.  
   
-Foxes, wolves and bears must **break a field's gate** to reach animals inside (see Gates & Wood).  
+A tall **wall** goes around the whole farm. Foxes, wolves and bears must **break the farm gate** to get in (see Gates & Wood).  
   
 No predators come during the tutorial. Night brings more of them - your farmer carries a lantern.
 
@@ -163,7 +163,9 @@ Goats headbutt snakes and rats. Llamas and the rare Brave Cow kick foxes, wolves
 **Guards** (Shop -> Workers): hired guards chase and catch predators for you.  
   
 **Lamp posts** (Shop -> **Lights**, 250 each, up to 10)  
-Built around your fields and the yard. They light up by themselves at night. Predators move 40% slower near a lit lamp and leave animals in the light alone when they can.
+**You choose where it goes**: after buying, a see-through lamp follows your mouse with a ring showing how far the light reaches - green = OK, red = not allowed. Click to build it there (you pay when it is placed). **Esc** cancels.  
+Lamps go anywhere inside the farm wall (not in the gateway, not right next to another lamp). **Click a lamp post** later to move it for free.  
+They turn **on at 18:00** and **off at 06:00** by themselves. Predators move 40% slower near a lit lamp and leave animals in the light alone when they can.
 
 ## 9. Workers
 
@@ -206,7 +208,7 @@ Pig Pen - Rank 9, 5000 coins (back left)
 Turkey Yard - Rank 11, 6500 coins (back right)  
 Llama Ridge - Rank 14, 9000 coins (at the back)  
   
-A sign over each gate shows how many animals are inside, e.g. "Chicken Run 3/5" (red = FULL).  
+A sign over each field's entrance shows how many animals are inside, e.g. "Chicken Run 3/5" (red = FULL).  
 Keep the plots planted so your 5 animals never go hungry - or hire a Water Carrier.
 
 ## 11. Orders
@@ -229,33 +231,40 @@ From **Day 2**, zombies shamble out of the forest - in the day and (more of them
 They are slow but tough: about **5 hits** (3 when you have defenders). Click a zombie to hit it, like any predator.  
   
 **What zombies do**  
-They walk around the fence to a field's **gate** and smash it. A red bar over the gate shows its strength. When the gate breaks they go in and drag an animal away - chase them!  
+They walk around the farm wall to the **farm gate** (where the road comes in) and smash it. A bar over the gate shows its strength. When the gate breaks they walk into the farm and drag an animal away - chase them!  
 They shove the farmer back (you are never hurt) and bite survivors (survivors get injured, never killed).  
   
 **How to fight back**  
-**Repair gates** with wood (see Gates & Wood), or give survivors the **Builder** job.  
+**Repair the farm gate** with wood (see Gates & Wood), or give survivors the **Builder** job.  
 **Guards** (hired workers or survivors on guard duty), **Guard Dogs**, **traps**, **lamp posts** (zombies are slower in the light), and **Llamas** / the Brave Cow (they kick zombies).  
 Until you have a defender only one zombie comes at a time; after that, bigger hordes come at night.
 
 ## 13. Gates & Wood
 
-**Gates**  
-Every field has a gate with **10,000 health**. Zombies, foxes, wolves and bears must break it to reach your animals - they hit it again and again (zombies never stop; animals give up after a while). Hawks fly over, snakes and rats slip through the fence.  
-A bar over a damaged gate shows its health. Damage stays until it is repaired.  
+**The farm wall and gate**  
+A tall wooden wall goes around the **whole farm**. It has **one gate**, on the road at the north side, with **10,000 health**. Fields and the Crop Field have open entrances - the farm gate is what keeps danger out.  
+Zombies, foxes, wolves and bears walk around the wall and hit the gate again and again (zombies never stop; animals give up after a while). Once it is broken they walk right in. Hawks fly over the wall, snakes and rats slip under it.  
+The gate opens by itself for the truck, you and your people, and stays shut while danger is near.  
+A bar over the gate shows its health when it is damaged. Damage stays until it is repaired.  
   
 **Repairing**  
 Repairing adds **100 health per minute for each person** working on it - two builders = 200 per minute.  
 It uses **wood**: 1 wood for every 100 health.  
-**You**: click a damaged gate - your farmer keeps hammering (100 per minute) until you walk away or run out of wood.  
-**Builders** (survivor job): they go to the most damaged gate by themselves and stand side by side to repair it.  
+**You**: click the damaged gate - your farmer keeps hammering (100 per minute) until you walk away or run out of wood.  
+**Builders** (survivor job): they go to the farm gate by themselves and stand side by side to repair it.  
   
 **Wood**  
 Two groves of trees grow beside the fields. **Click a tree** to chop it (5 seconds, +3 wood). Builders chop trees by themselves with an axe when the wood runs out. A stump grows back after 3 minutes.  
 Your wood is shown at the top left (a new farm starts with 10).  
   
 **Guards**  
-Guards defend their field plus **2 plots beyond its fence and gate** - they patrol from the middle to the gate and do not chase predators further away.  
-**Weapons** (Shop -> Workers, or the Camp): Pitchfork -> Machete -> Spear -> Battle Axe -> Flaming Sword. Every guard - hired or survivor - uses the best one you bought. Zoom in (mouse wheel) to see them.
+Guards defend the whole farm, from the middle out to **2 plots beyond the wall and gate** - they patrol between their field and the farm gate and do not chase predators further away.  
+**Weapons** (Shop -> Workers, or the Camp): Pitchfork -> Machete -> Spear -> Battle Axe -> Flaming Sword. Every guard - hired or survivor - uses the best one you bought. Zoom in (mouse wheel) to see them.  
+  
+**Guard health**  
+Zombies, bears, wolves and foxes hurt guards who fight them (a bar under their name shows their health). Guards are never killed.  
+Guards **heal by themselves**, but it **costs food**: a hurt guard eats one food item from storage (wheat, eggs, milk first, meals last) - 1 food point heals 20 health, about 2 health per second.  
+Below 30% health a guard stops fighting until healed. **No food = no healing**, so keep food in storage.
 
 ## 14. Survivors
 
@@ -264,7 +273,7 @@ Now and then a survivor walks up the road. A card shows their name and skill - c
   
 **Camp window** (Camp button, C, or click the **Bunkhouse** next to the road)  
 See every survivor's health, morale and what they are doing. Click **Job** to open the list of jobs and pick one. Use the **Show** buttons to filter by job - each shows how many survivors do it, listed by name (A-Z).  
-**Guard** - fights zombies and predators near their field.   **Builder** - chops trees and repairs gates.  
+**Guard** - fights zombies and predators on the farm.   **Builder** - chops trees and repairs the farm gate.  
 **Farmer** - plants, waters and harvests crops.   **Cook** - makes meals in the Kitchen.  
 **Collector** - picks up goods.   **Water Carrier** - replants grass.   **Off duty** - rests.  
 Survivors work **40% faster at their skill**. Collectors, Guards and Water Carriers can also be given one field ("Works in").  

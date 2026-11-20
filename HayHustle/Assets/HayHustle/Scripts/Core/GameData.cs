@@ -268,6 +268,7 @@ namespace HayHustle
         public const int LampPrice = 250;
         public const int MaxLamps = 10;
         public const float LampRadius = 10f;   // matches the lit circle (about 8 plots across)
+        public const float LightsOnTime = 0.75f, LightsOffTime = 0.25f;   // 18:00 to 06:00
 
         // Fence upgrades slow predators inside your fields. Index = fence level.
         public static readonly int[] FenceUpgradeCost = { 1200, 3000 };
@@ -307,7 +308,14 @@ namespace HayHustle
         public const int WoodPerTree = 3;
         public const float TreeRegrowSeconds = 180f;
         public const float PlayerChopSeconds = 5f, WorkerChopSeconds = 8f;
-        public const float GuardZoneMargin = 5f;         // 2 plots beyond the fence and gate
+        public const float GuardHealPerSecond = 2f;      // guards heal by themselves...
+        public const float GuardHealPerFood = 20f;       // ...eating food: 1 food point = 20 health
+        public const float GuardRetreatHealth = 30f;     // badly hurt guards stop fighting until healed
+        public const float GuardZoneMargin = 5f;         // 2 plots beyond the farm wall and gate
+
+        // The wall around the whole farm. Its one gate is on the road (north side, x = 0).
+        public const float WallMinX = -36f, WallMaxX = 36f, WallMinZ = -57f, WallMaxZ = 36f;
+        public const float FarmGateHalfWidth = 3f;
         public const float GateGiveUpSeconds = 45f;      // animals give up on a gate after this (zombies never do)
 
         /// <summary>Damage per second a predator does to a gate while attacking it.</summary>

@@ -3,7 +3,8 @@ using UnityEngine;
 namespace HayHustle
 {
     /// <summary>
-    /// The gate of a fenced field (10,000 health). Zombies, foxes, wolves and bears hit it continuously to get in.
+    /// The main gate in the wall around the whole farm (10,000 health). Zombies, foxes, wolves and bears hit it
+    /// continuously to get in. It swings open for the truck and your people, and shuts when danger is near.
     /// Repairing takes time and wood: 100 health per minute for each person working on it (they stack),
     /// using 1 wood per 100 health. Click it to repair it yourself, or let Builders do it.
     /// </summary>
@@ -17,12 +18,13 @@ namespace HayHustle
         public Vector3 RepairPoint => transform.position + transform.forward * 1.3f;
 
         Transform left, right;
-        float nextHitFx, nextRepairFx;
+        float nextHitFx, nextRepairFx, halfWidth = 2f, open;
 
-        public void Init(string fieldName)
+        public void Init(string fieldName, float halfWidth = 2f)
         {
             FieldName = fieldName;
-            Range = 2.8f;
+            this.halfWidth = halfWidth;
+            Range = 2.8f + (halfWidth - 2f);
             left = Board(-1f);
             right = Board(1f);
             GameManager.I.Gates.Add(this);
@@ -33,10 +35,13 @@ namespace HayHustle
         {
             var hinge = new GameObject("Gate Half").transform;
             hinge.SetParent(transform, false);
-            hinge.localPosition = new Vector3(2f * side, 0f, 0f);
-            foreach (float h in new[] { 0.3f, 0.6f, 0.9f })
-                Visuals.Prim(PrimitiveType.Cube, hinge, new Vector3(-1f * side, h, 0f), new Vector3(1.95f, 0.12f, 0.08f), Palette.Wood);
-            Visuals.Prim(PrimitiveType.Cube, hinge, new Vector3(-1f * side, 0.6f, 0f), new Vector3(0.1f, 0.75f, 0.06f), Palette.DarkWood, false, new Vector3(0f, 0f, 55f * side));
+            float w = halfWidth;
+            hinge.localPosition = new Vector3(w * side, 0f, 0f);
+            foreach (float h in new[] { 0.35f, 0.8f, 1.25f, 1.7f })
+                Visuals.Prim(PrimitiveType.Cube, hinge, new Vector3(-w / 2f * side, h, 0f), new Vector3(w - 0.05f, 0.16f, 0.1f), Palette.Wood);
+            for (int i = 0; i < 3; i++)   // upright planks
+                Visuals.Prim(PrimitiveType.Cube, hinge, new Vector3(-(0.15f + i * (w - 0.3f) / 2f) * side, 1.0f, 0.04f), new Vector3(0.14f, 1.9f, 0.06f), Palette.DarkWood);
+            Visuals.Prim(PrimitiveType.Cube, hinge, new Vector3(-w / 2f * side, 1.0f, -0.05f), new Vector3(0.12f, 1.6f, 0.06f), Palette.DarkWood, false, new Vector3(0f, 0f, 45f * side));
             return hinge;
         }
 
@@ -56,7 +61,7 @@ namespace HayHustle
         {
             if (GameManager.I.Wood < 0.05f)
             {
-                GameManager.I.Notify("No wood! Chop a tree first (click a tree near the fields).", Palette.UiRed);
+                GameManager.I.Notify("No wood! Chop a tree first (click a tree in the groves beside the fields).", Palette.UiRed);
                 FX.Play(Sfx.Error, 0.4f);
                 return;
             }
@@ -113,7 +118,7 @@ namespace HayHustle
             }
             if (Hp <= 0f)
             {
-                GameManager.I.Notify($"The {FieldName} gate was BROKEN! Guards, defend it - then repair it with wood.", Palette.UiRed, 7f);
+                GameManager.I.Notify($"The {FieldName} gate was BROKEN! Predators can walk into the farm - guards, defend it, then repair it with wood.", Palette.UiRed, 7f);
                 FX.Text(transform.position + Vector3.up * 2f, "GATE BROKEN!", Palette.UiRed, 1.3f);
                 FX.Play(Sfx.Grab, 0.6f);
             }
@@ -127,8 +132,36 @@ namespace HayHustle
             left.gameObject.SetActive(up);
             right.gameObject.SetActive(up);
             float damage = 1f - Hp / GameData.GateMaxHp;
-            left.localRotation = Quaternion.Euler(0f, 0f, -damage * 12f);
-            right.localRotation = Quaternion.Euler(0f, 0f, damage * 9f);
+            float swing = open * 85f;   // opens inwards, into the farm
+            left.localRotation = Quaternion.Euler(0f, swing, -damage * 12f);
+            right.localRotation = Quaternion.Euler(0f, -swing, damage * 9f);
+        }
+
+        /// <summary>Open for the truck and your people; shut tight while a predator or zombie is close.</summary>
+        void Update()
+        {
+            var gm = GameManager.I;
+            if (!gm || !left || Hp <= 0f) return;
+            Vector3 p = transform.position;
+            bool danger = false;
+            foreach (var pr in gm.Predators)
+                if (pr && GameManager.FlatDistance(pr.transform.position, p) < 12f) { danger = true; break; }
+            bool want = false;
+            if (!danger)
+            {
+                if (gm.Truck && GameManager.FlatDistance(gm.Truck.BodyPosition, p) < 10f) want = true;
+                else if (gm.Player && GameManager.FlatDistance(gm.Player.transform.position, p) < 3.5f && Hp >= GameData.GateMaxHp) want = true;
+                else
+                {
+                    foreach (var s in gm.Survivors) if (s && GameManager.FlatDistance(s.transform.position, p) < 4f) { want = true; break; }
+                    if (!want && gm.Visitor && GameManager.FlatDistance(gm.Visitor.transform.position, p) < 4f) want = true;
+                    if (!want) foreach (var w in gm.Workers) if (w && GameManager.FlatDistance(w.transform.position, p) < 4f) { want = true; break; }
+                }
+            }
+            float target = want ? 1f : 0f;
+            if (Mathf.Approximately(open, target)) return;
+            open = Mathf.MoveTowards(open, target, Time.deltaTime * (want ? 1.2f : 2.5f));
+            Refresh();
         }
     }
 }

@@ -120,7 +120,7 @@ namespace HayHustle
         {
             var gm = GameManager.I;
             float dt = Time.deltaTime;
-            if (lantern) lantern.enabled = gm.DayNight.IsNight;
+            if (lantern) lantern.enabled = gm.DayNight.LightsOn;
 
             bool menu = gm.Mode != GameMode.Playing || HUD.I.BlocksGameplay;
             bool blocked = menu || Busy;
@@ -130,7 +130,13 @@ namespace HayHustle
 
             // ---- Mouse: hover label + click to act ----
             HoverLabel = null;
-            if (!menu && mouse != null && cam != null)
+            if (LampPlacer.Active && (gm.Mode != GameMode.Playing)) LampPlacer.Cancel();
+            if (LampPlacer.Active && !menu && mouse != null && cam != null)
+            {
+                Vector2 mp = mouse.position.ReadValue();
+                LampPlacer.Tick(gm, cam, mp, mouse.leftButton.wasPressedThisFrame && !HUD.I.PointerOverUI(mp));
+            }
+            else if (!menu && mouse != null && cam != null)
             {
                 Vector2 mp = mouse.position.ReadValue();
                 if (!HUD.I.PointerOverUI(mp))
@@ -413,6 +419,7 @@ namespace HayHustle
 
         void KeepInBounds()
         {
+            KeepWallSolid();
             Vector3 p = transform.position;
             Vector2 c = new Vector2(GameManager.PastureCenter.x, GameManager.PastureCenter.z);
             Vector2 flat = new Vector2(p.x, p.z) - c;
@@ -421,6 +428,30 @@ namespace HayHustle
             cc.enabled = false;
             transform.position = new Vector3(flat.x, p.y, flat.y);
             cc.enabled = true;
+        }
+
+        Vector3 wallLastPos;
+        bool hasWallLastPos;
+
+        /// <summary>You cannot walk through the farm wall - only through the gate.</summary>
+        void KeepWallSolid()
+        {
+            Vector3 p = transform.position;
+            if (hasWallLastPos)
+            {
+                bool wasIn = GameManager.InsideFarm(wallLastPos), isIn = GameManager.InsideFarm(p);
+                bool atGate = Mathf.Abs(p.x) < GameData.FarmGateHalfWidth - 0.3f && Mathf.Abs(p.z - GameData.WallMaxZ) < 2f;
+                bool teleported = (p - wallLastPos).sqrMagnitude > 9f;
+                if (wasIn != isIn && !atGate && !teleported)
+                {
+                    cc.enabled = false;
+                    transform.position = new Vector3(wallLastPos.x, p.y, wallLastPos.z);
+                    cc.enabled = true;
+                    p = transform.position;
+                }
+            }
+            wallLastPos = p;
+            hasWallLastPos = true;
         }
 
     }

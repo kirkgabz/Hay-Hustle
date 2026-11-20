@@ -12,6 +12,10 @@ namespace HayHustle
     {
         public string Status { get; protected set; } = "Starting work";
 
+        /// <summary>0-100. Zombies and predators hurt guards; guards heal by themselves by eating food from storage.</summary>
+        public float Health = 100f;
+        float healBank, nextNoFoodNote, nextHurtFx;
+
         /// <summary>-1 = visit all fields in turn (rotation); otherwise the index of the one field this laborer looks after.</summary>
         public int AssignedField = -1;
 
@@ -75,7 +79,7 @@ namespace HayHustle
             float dt = Time.deltaTime;
             if (dt <= 0f || !Ready) return;
             OnTick(dt);
-            if (Job == JobKind.Guard) { UpdateGuard(dt); return; }
+            if (Job == JobKind.Guard) { GuardHeal(dt); UpdateGuard(dt); return; }
             float speed = 0f;
 
             if (Time.time < busyUntil)
@@ -158,6 +162,45 @@ namespace HayHustle
 
         // ================= Guard =================
 
+        /// <summary>Hurt by a zombie or predator. Nobody on the farm is ever killed.</summary>
+        public virtual void Damage(float amount)
+        {
+            Health = Mathf.Max(1f, Health - amount);
+            FX.Burst(transform.position + Vector3.up * 1.2f, new Color(0.7f, 0.1f, 0.1f), 6, 0.06f, 2f);
+            if (Time.time > nextHurtFx)
+            {
+                nextHurtFx = Time.time + 1f;
+                FX.Text(transform.position + Vector3.up * 2.4f, $"{DisplayName} hurt! ({Health:0}%)", Palette.UiRed, 0.9f);
+            }
+        }
+
+        /// <summary>Guards heal by themselves, but it costs food: they eat from storage (1 food point = 20 health).</summary>
+        void GuardHeal(float dt)
+        {
+            if (Health >= 100f) { healBank = 0f; return; }
+            var gm = GameManager.I;
+            if (healBank <= 0f)
+            {
+                int pts = gm.EatForHealing();
+                if (pts > 0)
+                {
+                    healBank += pts * GameData.GuardHealPerFood;
+                    Say("Eats to heal", Palette.UiGreen);
+                }
+                else if (Time.time > nextNoFoodNote)
+                {
+                    nextNoFoodNote = Time.time + 90f;
+                    gm.Notify($"{DisplayName} (guard) is hurt but there is no food in storage to heal with.", Palette.UiRed, 6f);
+                }
+            }
+            if (healBank > 0f)
+            {
+                float h = Mathf.Min(GameData.GuardHealPerSecond * dt, healBank, 100f - Health);
+                Health += h;
+                healBank -= h;
+            }
+        }
+
         Predator prey;
         Vector3 patrolPoint;
         bool hasPatrol;
@@ -166,10 +209,11 @@ namespace HayHustle
         void UpdateGuard(float dt)
         {
             var gm = GameManager.I;
+            bool hurt = Health < GameData.GuardRetreatHealth;
             guardRetarget -= dt;
             if (prey == null || guardRetarget <= 0f)
             {
-                prey = FindPrey(gm);
+                prey = hurt ? null : FindPrey(gm);
                 guardRetarget = 0.5f;
             }
 
@@ -205,13 +249,17 @@ namespace HayHustle
                 {
                     if (hasPatrol && Area(gm) == null) rotation++; // next field in the rotation
                     var field = WorkField(gm);
-                    // Patrol between the middle of the field and just outside its gate.
-                    patrolPoint = Random.value < 0.35f
-                        ? field.Gate + new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(1.5f, 3.5f))
+                    // Patrol between their field in the middle of the farm and the farm gate (up to 2 plots outside it).
+                    float roll = Random.value;
+                    patrolPoint = roll < 0.25f
+                        ? new Vector3(Random.Range(-2.5f, 2.5f), 0f, GameData.WallMaxZ + Random.Range(1.5f, GameData.GuardZoneMargin - 0.5f))
+                        : roll < 0.45f
+                        ? new Vector3(Random.Range(-4f, 4f), 0f, GameData.WallMaxZ - Random.Range(1.5f, 4f))
                         : field.RandomPoint();
                     hasPatrol = true;
                 }
-                Status = "Patrolling the " + WorkField(gm).Def.Name;
+                Status = hurt ? $"Badly hurt ({Health:0}%) - healing before fighting again"
+                    : $"Guarding the farm ({WorkField(gm).Def.Name} to the gate)";
                 Vector3 d = patrolPoint - pos;
                 d.y = 0f;
                 float dist = d.magnitude;
@@ -234,15 +282,12 @@ namespace HayHustle
         {
             Predator best = null;
             float bd = 80f;
-            var area = Area(gm);
             foreach (var p in gm.Predators)
             {
                 if (!p || p.Def == null) continue;
                 float d = GameManager.FlatDistance(p.transform.position, transform.position);
-                // Guards only fight inside their zone: the field plus 2 plots beyond its fence and gate.
-                Vector3 pp = p.transform.position;
-                bool inZone = area != null ? area.Contains(pp, GameData.GuardZoneMargin) : gm.InGuardZone(pp);
-                if (!inZone) continue;
+                // Guards only fight inside the farm and up to 2 plots beyond its wall and gate.
+                if (!gm.InGuardZone(p.transform.position)) continue;
                 if (d < bd) { bd = d; best = p; }
             }
             return best;

@@ -4,11 +4,14 @@ using UnityEngine.Rendering;
 namespace HayHustle
 {
     /// <summary>
-    /// A lamp post that lights up at night. Predators avoid lit areas: they move slower near a lamp
-    /// and prefer animals that are in the dark.
+    /// A lamp post that turns on by itself at 18:00 and off at 06:00. Predators avoid lit areas: they move
+    /// slower near a lamp and prefer animals that are in the dark. Click it to move it somewhere else.
     /// </summary>
-    public class Lamp : MonoBehaviour
+    public class Lamp : Interactable
     {
+        public override string Prompt => "Move this lamp post (click a new spot)";
+        public override void Interact(PlayerController player) => LampPlacer.BeginMove(this);
+
         static Material glassOn, glassOff;
 
         Light pointLight;
@@ -19,6 +22,7 @@ namespace HayHustle
 
         void Start()
         {
+            Range = 2.6f;
             var post = new Color(0.16f, 0.16f, 0.18f);
             Visuals.Prim(PrimitiveType.Cylinder, transform, new Vector3(0f, 0.15f, 0f), new Vector3(0.4f, 0.15f, 0.4f), post);
             Visuals.Prim(PrimitiveType.Cylinder, transform, new Vector3(0f, 1.6f, 0f), new Vector3(0.12f, 1.5f, 0.12f), post);
@@ -47,7 +51,7 @@ namespace HayHustle
                 if (glassOn.HasProperty("_EmissionColor")) glassOn.SetColor("_EmissionColor", new Color(1f, 0.8f, 0.45f) * 3f);
             }
             glass.sharedMaterial = glassOff;
-            GameManager.I.LampObjects.Add(this);
+            if (!GameManager.I.LampObjects.Contains(this)) GameManager.I.LampObjects.Add(this);
         }
 
         void OnDestroy()
@@ -58,7 +62,7 @@ namespace HayHustle
         void Update()
         {
             var gm = GameManager.I;
-            bool night = gm.DayNight && gm.DayNight.IsNight;
+            bool night = gm.DayNight && gm.DayNight.LightsOn;
             if (night == lit) return;
             lit = night;
             pointLight.enabled = lit;

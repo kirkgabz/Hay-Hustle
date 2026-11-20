@@ -20,7 +20,6 @@ namespace HayHustle
         public int index;
         public bool owned;
         public float[] grass;
-        public float gateDamage;   // 0 = gate is whole
     }
 
     [System.Serializable]
@@ -61,11 +60,12 @@ namespace HayHustle
         public int mess;
         public int cats, dogs;
         public int fenceLevel, traps, lamps;
+        public List<float> lampXZ;   // x, z of each lamp post (newer saves)
         public bool tutorialDone;
         public List<SurvivorSave> survivors = new List<SurvivorSave>();
         public List<CropSave> crops = new List<CropSave>();
         public int nextSurvivorId, bunkLevel, barnLevel, farmerCrop;
-        public float cropGateDamage;
+        public float farmGateDamage;   // 0 = the farm gate is whole
         public int[] seeds;
         public float wood = -1f;   // -1 = older save
         public int guardWeapon;
