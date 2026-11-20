@@ -66,6 +66,7 @@ namespace HayHustle
         public List<CropSave> crops = new List<CropSave>();
         public int nextSurvivorId, bunkLevel, barnLevel, farmerCrop;
         public float cropGateDamage;
+        public int[] seeds;
     }
 
     /// <summary>

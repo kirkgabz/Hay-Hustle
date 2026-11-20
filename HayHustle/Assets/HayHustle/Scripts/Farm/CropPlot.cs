@@ -43,7 +43,7 @@ namespace HayHustle
             get
             {
                 var gm = GameManager.I;
-                if (Empty) return "Plant a crop (choose seeds)";
+                if (Empty) return "Crop Field - plant seeds (plant all at once)";
                 if (Ripe) return $"Harvest {CropName} (+{GameData.Crops[Crop.Value].Yield})";
                 if (NeedsWater) return gm.Water > 0 ? $"Water the {CropName} (uses 1 water)" : "Bucket is empty - refill it at the well";
                 return $"{CropName} growing... {Growth * 100f:0}%";
@@ -66,11 +66,13 @@ namespace HayHustle
             }
         }
 
-        /// <summary>Plant seeds (pays the seed cost). Returns false if there are not enough coins.</summary>
+        /// <summary>Plant one seed from the seed stock. Returns false if the plot is not empty or there are no seeds.</summary>
         public bool Plant(CropKind kind)
         {
             var def = GameData.Crops[kind];
-            if (!Empty || !GameManager.I.Spend(def.SeedCost)) return false;
+            var gm = GameManager.I;
+            if (!Empty || gm.Seeds[(int)kind] <= 0) return false;
+            gm.Seeds[(int)kind]--;
             Crop = kind;
             Growth = 0f;
             Watered = false;

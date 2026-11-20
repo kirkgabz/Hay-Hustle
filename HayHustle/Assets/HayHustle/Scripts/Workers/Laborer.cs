@@ -437,7 +437,7 @@ namespace HayHustle
             {
                 var crop = GameData.Crops[gm.FarmerCrop];
                 if (gm.Rank < crop.UnlockRank) crop = GameData.Crops[CropKind.Wheat];
-                if (gm.Coins < crop.SeedCost) { Complain($"Not enough coins for {crop.Name} seeds"); Idle(gm.CropFieldCenter + new Vector3(0f, 0f, 7f)); return; }
+                if (gm.Seeds[(int)crop.Kind] <= 0) { Complain($"No {crop.Name} seeds - buy them in Shop > Seeds"); Idle(gm.CropFieldCenter + new Vector3(0f, 0f, 7f)); return; }
                 var plot = empty;
                 GoTo(plot.transform.position, "Planting " + crop.Name, () =>
                 {

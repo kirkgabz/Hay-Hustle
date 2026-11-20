@@ -10,7 +10,7 @@ namespace HayHustle
         int shopTab, manualTab;
         Vector2 sellScroll, buyScroll, truckScroll, manualScroll, workerScroll, farmScroll, whScroll;
 
-        static readonly string[] ShopTabs = { "Animals", "Helpers", "Workers", "Farm", "Lights", "Sell animals" };
+        static readonly string[] ShopTabs = { "Animals", "Seeds", "Helpers", "Workers", "Farm", "Lights", "Sell animals" };
 
         Rect Window(float w, float h, string heading)
         {
@@ -31,17 +31,19 @@ namespace HayHustle
             float tx = r.x + 26, ty = r.y + 62;
             for (int i = 0; i < ShopTabs.Length; i++)
             {
-                if (Tgl(new Rect(tx + i * 150, ty, 142, 42), shopTab == i, ShopTabs[i]) && shopTab != i) { shopTab = i; FX.Play(Sfx.Click, 0.2f); }
+                float tabW = (r.width - 52f) / ShopTabs.Length;
+                if (Tgl(new Rect(tx + i * tabW, ty, tabW - 6f, 42), shopTab == i, ShopTabs[i]) && shopTab != i) { shopTab = i; FX.Play(Sfx.Click, 0.2f); }
             }
             Lbl(new Rect(r.xMax - 260, r.y + 14, 190, 40), $"<color=#{Hex(Palette.UiGold)}>Coins {gm.Coins}</color>", labelR);
             Rect area = new Rect(r.x + 26, ty + 56, r.width - 52, r.yMax - ty - 74);
             switch (shopTab)
             {
                 case 0: DrawBuy(gm, area); break;
-                case 1: DrawHelpers(gm, area); break;
-                case 2: DrawWorkers(gm, area); break;
-                case 3: DrawFarm(gm, area); break;
-                case 4: DrawLights(gm, area); break;
+                case 1: DrawSeedShop(gm, area); break;
+                case 2: DrawHelpers(gm, area); break;
+                case 3: DrawWorkers(gm, area); break;
+                case 4: DrawFarm(gm, area); break;
+                case 5: DrawLights(gm, area); break;
                 default: DrawSell(gm, area); break;
             }
         }
@@ -86,6 +88,35 @@ namespace HayHustle
                 y += step;
             }
             GUI.EndScrollView();
+        }
+
+        void DrawSeedShop(GameManager gm, Rect area)
+        {
+            float y = area.y;
+            Lbl(new Rect(area.x, y, area.width, 26), "Buy seeds here. Then click the Crop Field, pick a seed and press <b>Plant all</b>. Seeds don't use storage space.", small);
+            y += 36;
+            foreach (var d in GameData.Crops.Values)
+            {
+                Rect row = new Rect(area.x, y, area.width, 96);
+                Row(row);
+                int have = gm.Seeds[(int)d.Kind];
+                Lbl(new Rect(row.x + 16, row.y + 8, row.width - 520, 32), $"<b>{d.Name} seeds</b>   <color=#AAAAAA>you have <b>{have}</b></color>", label);
+                Lbl(new Rect(row.x + 16, row.y + 46, row.width - 520, 40), $"{d.SeedCost} coins each  -  grows in {d.GrowTime:0}s  -  harvest {d.Yield}  -  {GameData.FoodValue[d.Produces]} food each", small);
+                var def = d;
+                if (gm.Rank < d.UnlockRank)
+                    Lbl(new Rect(row.xMax - 300, row.y + 30, 290, 36), $"<color=#AAAAAA>Unlocks at Farm Rank {d.UnlockRank}</color>", small);
+                else
+                {
+                    int[] packs = { 1, 5, 10 };
+                    for (int i = 0; i < packs.Length; i++)
+                    {
+                        int n = packs[i];
+                        if (Btn(new Rect(row.xMax - 498 + i * 164, row.y + 24, 156, 48), $"Buy {n} - {d.SeedCost * n}"))
+                            Confirm($"Buy {n} {def.Name} seeds?", $"Pay {def.SeedCost * n} coins for {n} {def.Name} seeds.", "Buy", () => gm.BuySeeds(def.Kind, n));
+                    }
+                }
+                y += 106;
+            }
         }
 
         void DrawHelpers(GameManager gm, Rect area)
@@ -479,11 +510,13 @@ namespace HayHustle
         // ================= Camp (survivors) =================
 
         Vector2 campScroll;
+        int campFilter = -1;          // -1 = all, otherwise (int)JobKind
+        int jobPickerFor = -1;        // survivor id whose job list is open
         static readonly JobKind[] SurvivorJobs = { JobKind.Guard, JobKind.Builder, JobKind.Farmer, JobKind.Collector, JobKind.Cook, JobKind.WaterCarrier, JobKind.Rest };
 
         void DrawCamp(GameManager gm)
         {
-            Rect r = Window(1100, 760, $"Camp   -   survivors {gm.Survivors.Count}/{gm.Beds} beds");
+            Rect r = Window(1120, 780, $"Camp   -   survivors {gm.Survivors.Count}/{gm.Beds} beds");
             float x = r.x + 26, w = r.width - 52, y = r.y + 60;
             bool low = gm.FoodPoints < gm.FoodNeededPerDay;
             Lbl(new Rect(x, y, w - 320, 28), $"Food in storage: <b>{gm.FoodPoints}</b>   -   needed every morning: <b>{gm.FoodNeededPerDay}</b>" +
@@ -494,9 +527,7 @@ namespace HayHustle
                 if (Btn(new Rect(r.xMax - 330, y - 4, 300, 40), $"More beds (+{GameData.BedsPerLevel}) - {cost}"))
                     Confirm("Upgrade the Bunkhouse?", $"Pay {cost} coins for {GameData.BedsPerLevel} more beds, so more survivors can join.", "Upgrade", gm.UpgradeBunkhouse);
             }
-            y += 40;
-            Lbl(new Rect(x, y, w, 26), "<color=#AAAAAA>Click a survivor's job to change it. They are faster at their skill. Injured survivors rest in the Bunkhouse until healed.</color>", small);
-            y += 34;
+            y += 44;
 
             if (gm.Survivors.Count == 0)
             {
@@ -504,26 +535,54 @@ namespace HayHustle
                 return;
             }
 
-            Rect list = new Rect(x, y, w, r.yMax - y - 20);
-            const float step = 104f;
-            campScroll = BeginScroll(list, campScroll, gm.Survivors.Count * step);
-            float ry = 0, rw = list.width - 26;
-            foreach (var s in gm.Survivors.ToArray())
+            // Filter: All + one button per job, with how many survivors do it
+            var people = gm.Survivors.Where(s => s).OrderBy(s => s.PersonName).ToList();
+            Lbl(new Rect(x, y + 6, 80, 30), "Show:", small);
+            float fx = x + 70;
+            int filters = SurvivorJobs.Length + 1;
+            float fw = (w - 70f) / filters;
+            for (int i = -1; i < SurvivorJobs.Length; i++)
             {
-                if (!s) continue;
-                Row(new Rect(0, ry, rw, step - 8));
+                int count = i < 0 ? people.Count : people.Count(s => s.AssignedJob == SurvivorJobs[i]);
+                string name = i < 0 ? "All" : GameData.JobName(SurvivorJobs[i]);
+                int value = i < 0 ? -1 : (int)SurvivorJobs[i];
+                if (Tgl(new Rect(fx + (i + 1) * fw, y, fw - 6, 40), campFilter == value, $"{name} ({count})") && campFilter != value)
+                {
+                    campFilter = value;
+                    campScroll = Vector2.zero;
+                    FX.Play(Sfx.Click, 0.2f);
+                }
+            }
+            y += 52;
+
+            var shown = campFilter < 0 ? people : people.Where(s => (int)s.AssignedJob == campFilter).ToList();
+            string heading = campFilter < 0 ? $"All survivors ({shown.Count})" : $"{GameData.JobName((JobKind)campFilter)}: {shown.Count}";
+            if (shown.Count > 0) heading += "  -  " + string.Join(", ", shown.Select(s => s.PersonName));
+            Lbl(new Rect(x, y, w, 28), $"<b>{heading}</b>", small);
+            y += 34;
+
+            const float rowH = 104f, pickerH = 56f;
+            float contentH = 0f;
+            foreach (var s in shown) contentH += rowH + (jobPickerFor == s.Id ? pickerH : 0f);
+            Rect list = new Rect(x, y, w, r.yMax - y - 20);
+            campScroll = BeginScroll(list, campScroll, contentH);
+            float ry = 0, rw = list.width - 26;
+            foreach (var s in shown)
+            {
+                bool open = jobPickerFor == s.Id;
+                Row(new Rect(0, ry, rw, rowH - 8 + (open ? pickerH : 0f)));
                 Lbl(new Rect(14, ry + 6, 360, 28), $"<b>{s.PersonName}</b>   <color=#AAAAAA>skill: {GameData.JobName(s.Skill)}</color>", label);
-                Lbl(new Rect(14, ry + 36, 360, 24), s.Status, small);
+                Lbl(new Rect(14, ry + 36, 380, 24), s.Status, small);
                 Lbl(new Rect(14, ry + 64, 70, 22), "Health", tiny);
                 Bar(new Rect(80, ry + 70, 110, 9), s.Health / 100f, s.Injured ? Palette.UiRed : Palette.UiGreen);
                 Lbl(new Rect(200, ry + 64, 70, 22), "Morale", tiny);
                 Bar(new Rect(266, ry + 70, 110, 9), s.Morale / 100f, s.Morale < 35f ? Palette.UiRed : Palette.UiGold);
 
                 var survivor = s;
-                if (Btn(new Rect(rw - 650, ry + 10, 230, 38), "Job: " + GameData.JobName(s.AssignedJob)))
+                string jobText = (open ? "Close list" : "Job: " + GameData.JobName(s.AssignedJob)) + (s.AssignedJob == s.Skill && !open ? "  *" : "");
+                if (Btn(new Rect(rw - 660, ry + 10, 240, 38), jobText))
                 {
-                    int i = System.Array.IndexOf(SurvivorJobs, s.AssignedJob);
-                    survivor.SetJob(SurvivorJobs[(i + 1) % SurvivorJobs.Length]);
+                    jobPickerFor = open ? -1 : s.Id;
                     FX.Play(Sfx.Click, 0.2f);
                 }
                 if (s.AssignedJob == JobKind.Collector || s.AssignedJob == JobKind.Guard || s.AssignedJob == JobKind.WaterCarrier)
@@ -536,35 +595,64 @@ namespace HayHustle
                 }
                 if (Btn(new Rect(rw - 150, ry + 10, 136, 38), "Dismiss"))
                     Confirm($"Send {s.PersonName} away?", "They leave the farm for good.", "Send away", () => gm.DismissSurvivor(survivor), true);
-                ry += step;
+
+                if (open)
+                {
+                    // The job list: pick one
+                    float bw = (rw - 28f) / SurvivorJobs.Length;
+                    for (int i = 0; i < SurvivorJobs.Length; i++)
+                    {
+                        var job = SurvivorJobs[i];
+                        string label2 = GameData.JobName(job) + (job == s.Skill ? " *" : "");
+                        if (Tgl(new Rect(14 + i * bw, ry + rowH - 2, bw - 6, 42), s.AssignedJob == job, label2) && s.AssignedJob != job)
+                        {
+                            survivor.SetJob(job);
+                            jobPickerFor = -1;
+                            FX.Play(Sfx.Click, 0.25f);
+                        }
+                    }
+                }
+                ry += rowH + (open ? pickerH : 0f);
             }
             GUI.EndScrollView();
+            Lbl(new Rect(x, r.yMax - 22, w, 20), "<color=#AAAAAA>*  = the survivor's skill (40% faster at it)</color>", tiny);
         }
 
-        // ================= Seed picker =================
+        // ================= Crop Field window =================
 
         void DrawSeeds(GameManager gm)
         {
-            if (!seedPlot || !seedPlot.Empty) { Open = Panel.None; return; }
-            Rect r = Window(760, 520, "Plant a crop");
-            float x = r.x + 26, w = r.width - 52, y = r.y + 64;
-            Lbl(new Rect(x, y, w, 26), "Pick seeds. After planting, water the plot (1 water). Ripe crops are food for survivors - or sell them.", small);
-            y += 36;
+            Rect r = Window(900, 640, "Crop Field");
+            float x = r.x + 26, w = r.width - 52, y = r.y + 62;
+            int empty = gm.EmptyCropPlots, thirsty = gm.ThirstyCropPlots;
+            Lbl(new Rect(x, y, w, 28), $"Empty plots: <b>{empty}</b>   -   need water: <b>{thirsty}</b>   -   your bucket: <b>{gm.Water}/{gm.WaterMax}</b>", label);
+            y += 38;
             foreach (var d in GameData.Crops.Values)
             {
-                Row(new Rect(x, y, w, 72));
-                Lbl(new Rect(x + 14, y + 4, w - 260, 32), $"<b>{d.Name}</b>   <color=#AAAAAA>grows in {d.GrowTime:0}s  -  harvest {d.Yield}  -  {GameData.FoodValue[d.Produces]} food each</color>", label);
-                Lbl(new Rect(x + 14, y + 38, w - 260, 26), $"Seeds: {d.SeedCost} coins", small);
+                Row(new Rect(x, y, w, 78));
+                int have = gm.Seeds[(int)d.Kind];
+                Lbl(new Rect(x + 14, y + 6, w - 520, 32), $"<b>{d.Name}</b>   <color=#AAAAAA>seeds: <b>{have}</b></color>", label);
+                Lbl(new Rect(x + 14, y + 42, w - 520, 26), $"grows {d.GrowTime:0}s  -  harvest {d.Yield}  -  {GameData.FoodValue[d.Produces]} food each", small);
                 var def = d;
                 if (gm.Rank < d.UnlockRank)
-                    Lbl(new Rect(x + w - 236, y + 20, 226, 30), $"<color=#AAAAAA>Unlocks at Rank {d.UnlockRank}</color>", small);
-                else if (Btn(new Rect(x + w - 236, y + 14, 222, 44), $"Plant - {d.SeedCost}"))
+                    Lbl(new Rect(x + w - 300, y + 24, 290, 30), $"<color=#AAAAAA>Unlocks at Rank {d.UnlockRank}</color>", small);
+                else
                 {
-                    if (seedPlot.Plant(def.Kind)) Open = Panel.None;
+                    GUI.enabled = confirm == null && have > 0 && empty > 0;
+                    if (Btn(new Rect(x + w - 500, y + 16, 300, 46), have > 0 ? $"Plant all ({Mathf.Min(have, empty)} plots)" : "No seeds"))
+                        gm.PlantAll(def.Kind);
+                    GUI.enabled = confirm == null;
+                    if (Btn(new Rect(x + w - 190, y + 16, 176, 46), $"Buy 5 - {d.SeedCost * 5}"))
+                        Confirm($"Buy 5 {def.Name} seeds?", $"Pay {def.SeedCost * 5} coins for 5 {def.Name} seeds.", "Buy", () => gm.BuySeeds(def.Kind, 5));
                 }
-                y += 80;
+                y += 86;
             }
-            y += 6;
+            y += 4;
+            GUI.enabled = confirm == null && thirsty > 0;
+            if (Btn(new Rect(x, y, 400, 52), thirsty > 0 ? $"Water all ({Mathf.Min(thirsty, gm.Water)} plots)" : "Nothing needs water", bigButton)) gm.WaterAll();
+            GUI.enabled = confirm == null;
+            Lbl(new Rect(x + 420, y, w - 420, 52), "Planted crops only grow after they are watered. Ripe crops: click a plot to harvest.", wrap);
+            y += 66;
             Lbl(new Rect(x, y + 6, 300, 30), "Farmer survivors plant:", label);
             if (Btn(new Rect(x + 300, y, 260, 42), GameData.Crops[gm.FarmerCrop].Name))
             {

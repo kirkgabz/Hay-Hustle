@@ -241,7 +241,7 @@ Until you have a defender only one zombie comes at a time; after that, bigger ho
 Now and then a survivor walks up the road. A card shows their name and skill - click **Accept** or **Decline**. They need a **free bed** in the Bunkhouse.  
   
 **Camp window** (Camp button, C, or click the **Bunkhouse** next to the road)  
-See every survivor's health, morale and what they are doing. Click **Job** to change it:  
+See every survivor's health, morale and what they are doing. Click **Job** to open the list of jobs and pick one. Use the **Show** buttons to filter by job - each shows how many survivors do it, listed by name (A-Z).  
 **Guard** - fights zombies and predators.   **Builder** - repairs gates.  
 **Farmer** - plants, waters and harvests crops.   **Cook** - makes meals in the Kitchen.  
 **Collector** - picks up goods.   **Water Carrier** - replants grass.   **Off duty** - rests.  
@@ -256,12 +256,14 @@ Survivors cost no coins, but every morning each one eats **3 food**. Fed survivo
 ## 14. Crops & Food
 
 **Crop Field** (fenced field north-west of the yard, next to the Kitchen)  
-1. **Click an empty plot** and choose seeds.  
-2. **Click it again to water it** (uses 1 water from your bucket). It only grows when watered.  
-3. When it is ripe, **click to harvest**.  
+1. Buy seeds: Shop -> **Seeds** (packs of 1, 5 or 10). A new farm starts with 8 wheat seeds.  
+2. **Click the Crop Field** (any empty plot). Pick a seed and press **Plant all** - every empty plot is planted at once.  
+3. Press **Water all** (uses water from your bucket, 1 per plot). Crops only grow when watered.  
+4. When a crop is ripe, **click it to harvest**.  
 Or give a survivor the **Farmer** job - they do all of it (choose what they plant in the seed window: "Farmer survivors plant").  
   
 **Crops**  
+Seeds per crop (Shop -> Seeds):  
 Wheat (Rank 1) - 5 coins, 60s, x3, 1 food each  
 Carrot (Rank 2) - 10 coins, 90s, x3, 2 food each  
 Corn (Rank 3) - 15 coins, 120s, x4, 2 food each  

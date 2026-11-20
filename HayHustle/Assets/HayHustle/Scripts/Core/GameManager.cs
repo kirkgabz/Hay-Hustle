@@ -46,6 +46,8 @@ namespace HayHustle
         public int FenceLevel, Traps, Lamps;
         public int BunkLevel = 1, BarnLevel;
         public CropKind FarmerCrop = CropKind.Wheat;
+        /// <summary>Seeds bought in the Shop, per crop (does not use storage space).</summary>
+        public int[] Seeds = new int[System.Enum.GetValues(typeof(CropKind)).Length];
         int nextSurvivorId = 1;
         float arrivalTimer = 150f, visitorTimeout;
         public bool TutorialDone;
@@ -198,6 +200,8 @@ namespace HayHustle
             BunkLevel = 1;
             BarnLevel = 0;
             FarmerCrop = CropKind.Wheat;
+            System.Array.Clear(Seeds, 0, Seeds.Length);
+            Seeds[(int)CropKind.Wheat] = 8; // a starter pack
             nextSurvivorId = 1;
             arrivalTimer = 150f;
             foreach (var p in CropPlots) if (p) p.SetState(-1, 0f, false);
@@ -295,6 +299,9 @@ namespace HayHustle
             BarnLevel = Mathf.Clamp(d.barnLevel, 0, GameData.BarnUpgradeCost.Length);
             FarmerCrop = (CropKind)Mathf.Clamp(d.farmerCrop, 0, System.Enum.GetValues(typeof(CropKind)).Length - 1);
             nextSurvivorId = Mathf.Max(1, d.nextSurvivorId);
+            System.Array.Clear(Seeds, 0, Seeds.Length);
+            if (d.seeds != null) for (int i = 0; i < Mathf.Min(Seeds.Length, d.seeds.Length); i++) Seeds[i] = d.seeds[i];
+            else Seeds[(int)CropKind.Wheat] = 8; // older saves get a starter pack
             if (CropGate) CropGate.SetHp(GameData.GateMaxHp - d.cropGateDamage);
             for (int i = 0; i < CropPlots.Count; i++)
             {
@@ -389,6 +396,7 @@ namespace HayHustle
                 farmerCrop = (int)FarmerCrop,
                 nextSurvivorId = nextSurvivorId,
                 cropGateDamage = CropGate ? GameData.GateMaxHp - CropGate.Hp : 0f,
+                seeds = (int[])Seeds.Clone(),
                 tutorialDone = TutorialDone || !Tutorial.Active,
                 inventory = (int[])Inventory.Clone(),
             };
@@ -728,6 +736,64 @@ namespace HayHustle
             }
             if (hungry > 0) Notify($"Not enough food! {hungry} survivor(s) went hungry - grow crops or cook meals.", Palette.UiRed, 7f);
             else Notify($"Breakfast: {fed} survivor(s) ate. Food left: {FoodPoints}.", Palette.UiWhite, 5f);
+        }
+
+        // ================= Seeds & planting =================
+
+        public void BuySeeds(CropKind kind, int amount)
+        {
+            var d = GameData.Crops[kind];
+            if (Rank < d.UnlockRank || amount <= 0) return;
+            if (!Spend(d.SeedCost * amount)) return;
+            Seeds[(int)kind] += amount;
+            FX.Play(Sfx.Coin, 0.4f);
+            Notify($"Bought {amount} {d.Name} seeds (you have {Seeds[(int)kind]}).", Palette.UiGreen);
+        }
+
+        public int EmptyCropPlots => CropPlots.Count(p => p && p.Empty);
+        public int ThirstyCropPlots => CropPlots.Count(p => p && p.NeedsWater);
+
+        /// <summary>Plants every empty plot with this seed, as far as the seed stock goes. Returns how many were planted.</summary>
+        public int PlantAll(CropKind kind)
+        {
+            int planted = 0;
+            foreach (var p in CropPlots)
+            {
+                if (!p || !p.Empty) continue;
+                if (Seeds[(int)kind] <= 0) break;
+                if (p.Plant(kind)) planted++;
+            }
+            var d = GameData.Crops[kind];
+            if (planted > 0)
+            {
+                AddXp(planted);
+                Notify($"Planted {planted} {d.Name}. Now water them (Water all).", Palette.UiGreen);
+                if (Player) Player.PlayAnim(ActAnim.Plant, 0.6f);
+            }
+            else if (Seeds[(int)kind] <= 0) { Notify($"No {d.Name} seeds - buy them in Shop > Seeds.", Palette.UiRed); FX.Play(Sfx.Error, 0.4f); }
+            else Notify("There are no empty plots.", Palette.UiWhite);
+            return planted;
+        }
+
+        /// <summary>Waters every planted plot that needs it, using water from the bucket.</summary>
+        public int WaterAll()
+        {
+            int watered = 0;
+            foreach (var p in CropPlots)
+            {
+                if (!p || !p.NeedsWater) continue;
+                if (Water <= 0) break;
+                Water--;
+                p.WaterFree();
+                watered++;
+            }
+            if (watered > 0)
+            {
+                Notify($"Watered {watered} plot(s). Water left in the bucket: {Water}.", new Color(0.5f, 0.8f, 1f));
+                if (Player) Player.PlayAnim(ActAnim.Fill, 0.8f);
+            }
+            else if (Water <= 0) { Notify("Your bucket is empty - refill it at the well.", Palette.UiRed); FX.Play(Sfx.Error, 0.4f); }
+            return watered;
         }
 
         public void UpgradeBunkhouse()

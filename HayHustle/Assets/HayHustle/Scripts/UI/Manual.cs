@@ -202,7 +202,8 @@ namespace HayHustle
             "Now and then a survivor walks up the road. A card shows their name and skill - click <b>Accept</b> or <b>Decline</b>. " +
             "They need a <b>free bed</b> in the Bunkhouse.\n\n" +
             "<b>Camp window</b> (Camp button, C, or click the <b>Bunkhouse</b> next to the road)\n" +
-            "See every survivor's health, morale and what they are doing. Click <b>Job</b> to change it:\n" +
+            "See every survivor's health, morale and what they are doing. Click <b>Job</b> to open the list of jobs and pick one. " +
+            "Use the <b>Show</b> buttons to filter by job - each shows how many survivors do it, listed by name (A-Z).\n" +
             "<b>Guard</b> - fights zombies and predators.   <b>Builder</b> - repairs gates.\n" +
             "<b>Farmer</b> - plants, waters and harvests crops.   <b>Cook</b> - makes meals in the Kitchen.\n" +
             "<b>Collector</b> - picks up goods.   <b>Water Carrier</b> - replants grass.   <b>Off duty</b> - rests.\n" +
@@ -215,11 +216,13 @@ namespace HayHustle
 
             // ---------------- Crops & Food ----------------
             "<b>Crop Field</b> (fenced field north-west of the yard, next to the Kitchen)\n" +
-            "1. <b>Click an empty plot</b> and choose seeds.\n" +
-            "2. <b>Click it again to water it</b> (uses 1 water from your bucket). It only grows when watered.\n" +
-            "3. When it is ripe, <b>click to harvest</b>.\n" +
+            "1. Buy seeds: Shop -> <b>Seeds</b> (packs of 1, 5 or 10). A new farm starts with 8 wheat seeds.\n" +
+            "2. <b>Click the Crop Field</b> (any empty plot). Pick a seed and press <b>Plant all</b> - every empty plot is planted at once.\n" +
+            "3. Press <b>Water all</b> (uses water from your bucket, 1 per plot). Crops only grow when watered.\n" +
+            "4. When a crop is ripe, <b>click it to harvest</b>.\n" +
             "Or give a survivor the <b>Farmer</b> job - they do all of it (choose what they plant in the seed window: \"Farmer survivors plant\").\n\n" +
             "<b>Crops</b>\n" +
+            "Seeds per crop (Shop -> Seeds):\n" +
             "Wheat (Rank 1) - 5 coins, 60s, x3, 1 food each\n" +
             "Carrot (Rank 2) - 10 coins, 90s, x3, 2 food each\n" +
             "Corn (Rank 3) - 15 coins, 120s, x4, 2 food each\n" +

@@ -18,7 +18,7 @@ namespace HayHustle
         /// <summary>Open the seed picker for an empty crop plot.</summary>
         public void OpenSeeds(CropPlot plot)
         {
-            seedPlot = plot;
+            seedPlot = plot; // kept for future per-plot use
             Open = Panel.Seeds;
             FX.Play(Sfx.Click, 0.2f);
         }
