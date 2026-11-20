@@ -42,6 +42,8 @@ namespace HayHustle
     public class SaveData
     {
         public int version = 2;
+        public long savedAt;       // unix seconds (UTC) - the newest save wins when syncing with the cloud
+        public string ownerId;     // the account this farm belongs to ("" = offline)
         public string farmName;
         public int character;
         public int coins, water, waterMax, xp, warehouseCapacity;
@@ -72,8 +74,8 @@ namespace HayHustle
     }
 
     /// <summary>
-    /// Local save file. Later this is mirrored to the Supabase backend (cloud save),
-    /// see backend/supabase in the project root.
+    /// Save file on this device (in a browser: the browser's storage). When signed in it is also
+    /// mirrored to the Supabase backend - see CloudSave.
     /// </summary>
     public static class SaveSystem
     {
@@ -89,6 +91,19 @@ namespace HayHustle
         {
             try { File.WriteAllText(FilePath, JsonUtility.ToJson(data, true)); }
             catch (IOException e) { Debug.LogError("Hay Hustle: could not save - " + e.Message); }
+        }
+
+        /// <summary>Write a save that came from the cloud exactly as it is.</summary>
+        public static void WriteRaw(string json)
+        {
+            try { File.WriteAllText(FilePath, json); }
+            catch (IOException e) { Debug.LogError("Hay Hustle: could not save - " + e.Message); }
+        }
+
+        public static void Delete()
+        {
+            try { if (Exists) File.Delete(FilePath); }
+            catch (IOException e) { Debug.LogError("Hay Hustle: could not delete save - " + e.Message); }
         }
 
         public static SaveData Load()

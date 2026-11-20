@@ -501,10 +501,15 @@ namespace HayHustle
         void DrawHelp()
         {
             Rect r = Window(1260, 820, "User Manual - what to click");
-            float tx = r.x + 26, ty = r.y + 66, tw = 220, th = Mathf.Min(52f, (r.height - 90f) / Manual.Titles.Length - 4f);
-            for (int i = 0; i < Manual.Titles.Length; i++)
+            int n = Manual.Titles.Length;
+            int cols = (r.height - 90f) / n - 4f < 34f ? 2 : 1;   // short screens (phones): two columns of tabs
+            int rows = Mathf.CeilToInt(n / (float)cols);
+            float colW = cols == 1 ? 220f : 172f;
+            float tx = r.x + 26, ty = r.y + 66, tw = colW * cols + (cols - 1) * 4f, th = Mathf.Min(52f, (r.height - 90f) / rows - 4f);
+            for (int i = 0; i < n; i++)
             {
-                if (Tgl(new Rect(tx, ty + i * (th + 4), tw, th), manualTab == i, Manual.Titles[i]) && manualTab != i)
+                int c = i / rows, row = i % rows;
+                if (Tgl(new Rect(tx + c * (colW + 4f), ty + row * (th + 4), colW, th), manualTab == i, Manual.Titles[i]) && manualTab != i)
                 {
                     manualTab = i;
                     manualScroll = Vector2.zero;
@@ -698,7 +703,7 @@ namespace HayHustle
 
         void DrawPause(GameManager gm)
         {
-            Rect r = Window(560, 640, "Paused");
+            Rect r = Window(560, Device.IsWeb ? 640 : 700, "Paused");
             float x = r.x + 40, w = r.width - 80, y = r.y + 70;
             if (Btn(new Rect(x, y, w, 56), "Resume", bigButton)) Open = Panel.None;
             y += 76;
@@ -719,17 +724,27 @@ namespace HayHustle
             Lbl(new Rect(x, y, 140, 40), "Confirm buys", label);
             if (Tgl(new Rect(x + 150, y, (w - 160) / 2f, 40), Settings.AskConfirm, "Ask first") && !Settings.AskConfirm) Settings.SetAskConfirm(true);
             if (Tgl(new Rect(x + 160 + (w - 160) / 2f, y, (w - 160) / 2f, 40), !Settings.AskConfirm, "Don't ask") && Settings.AskConfirm) Settings.SetAskConfirm(false);
-            y += 66;
+            y += 52;
 
-            if (Btn(new Rect(x, y, w, 50), Tutorial.Active ? "Tutorial is running" : "Replay tutorial"))
+            Lbl(new Rect(x, y, 140, 40), "Controls", label);
+            float cw = (w - 150 - 16) / 3f;
+            string[] modes = { "Auto", "Touch", "Mouse" };
+            for (int i = 0; i < 3; i++)
+                if (Tgl(new Rect(x + 150 + i * (cw + 8), y, cw, 40), Device.TouchMode == i, modes[i]) && Device.TouchMode != i) { Device.SetTouchMode(i); FX.Play(Sfx.Click, 0.2f); }
+            y += 62;
+
+            float half = Device.IsWeb ? (w - 10) / 2f : w;
+            if (Btn(new Rect(x, y, half, 50), Tutorial.Active ? "Tutorial is running" : "Replay tutorial"))
             {
                 if (!Tutorial.Active) { Tutorial.Begin(); Open = Panel.None; }
             }
+            if (Device.IsWeb && Btn(new Rect(x + half + 10, y, half, 50), Screen.fullScreen ? "Exit full screen" : "Full screen"))
+                Screen.fullScreen = !Screen.fullScreen;
             y += 62;
             if (Btn(new Rect(x, y, w, 50), "Save & quit to title"))
                 Confirm("Quit to the title screen?", "Your farm will be saved.", "Save & quit", () => gm.GoToTitle(), true);
             y += 62;
-            if (Btn(new Rect(x, y, w, 50), "Quit game"))
+            if (!Device.IsWeb && Btn(new Rect(x, y, w, 50), "Quit game"))
                 Confirm("Quit Hay Hustle?", "Your farm will be saved.", "Quit", () => { gm.SaveGame(); Application.Quit(); }, true);
         }
     }

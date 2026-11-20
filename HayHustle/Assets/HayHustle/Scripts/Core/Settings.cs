@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace HayHustle
 {
-    /// <summary>Player settings stored on this PC (volume, graphics quality, confirmation popups).</summary>
+    /// <summary>Player settings stored on this device (volume, graphics quality, confirmation popups).</summary>
     public static class Settings
     {
         public static float Volume { get; private set; } = 0.8f;
@@ -12,7 +12,7 @@ namespace HayHustle
         public static void Load()
         {
             Volume = PlayerPrefs.GetFloat("hh_volume", 0.8f);
-            HighQuality = PlayerPrefs.GetInt("hh_quality", 1) == 1;
+            HighQuality = PlayerPrefs.GetInt("hh_quality", Application.isMobilePlatform ? 0 : 1) == 1;   // phones start on Low (faster)
             AskConfirm = PlayerPrefs.GetInt("hh_confirm", 1) == 1;
             Apply();
         }
@@ -45,6 +45,9 @@ namespace HayHustle
             if (WorldBuilder.Sun) WorldBuilder.Sun.shadows = HighQuality ? LightShadows.Soft : LightShadows.None;
             QualitySettings.shadowDistance = HighQuality ? 70f : 0f;
             if (WorldBuilder.PostVolume) WorldBuilder.PostVolume.enabled = HighQuality;
+            // Phones: draw the 3D world a bit below screen resolution on Low (much faster; the menus stay sharp).
+            if (Application.isMobilePlatform && UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urp)
+                urp.renderScale = HighQuality ? 1f : 0.75f;
             if (WorldBuilder.CameraData)
                 WorldBuilder.CameraData.antialiasing = HighQuality
                     ? UnityEngine.Rendering.Universal.AntialiasingMode.SubpixelMorphologicalAntiAliasing

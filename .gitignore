@@ -26,3 +26,6 @@
 
 # Working copy of the scripts; the Unity project (HayHustle/Assets/HayHustle) is the real source
 GameSource/
+
+# The web version (built by Hay Hustle > Build for Web) is published by Vercel, so keep its Build folder
+!/WebBuild/Build/

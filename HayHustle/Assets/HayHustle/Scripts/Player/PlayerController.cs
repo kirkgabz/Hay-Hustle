@@ -131,7 +131,17 @@ namespace HayHustle
             // ---- Mouse: hover label + click to act ----
             HoverLabel = null;
             if (LampPlacer.Active && (gm.Mode != GameMode.Playing)) LampPlacer.Cancel();
-            if (LampPlacer.Active && !menu && mouse != null && cam != null)
+            var touch = Device.Touch ? TouchControls.I : null;
+            if (touch != null)
+            {
+                // Phone: tap to act (or to choose where a lamp goes).
+                if (touch.TakeTap(out var tp) && !menu && cam != null)
+                {
+                    if (LampPlacer.Active) LampPlacer.TouchTap(gm, cam, tp);
+                    else if (!Busy) Apply(PickAt(gm, cam, tp));
+                }
+            }
+            else if (LampPlacer.Active && !menu && mouse != null && cam != null)
             {
                 Vector2 mp = mouse.position.ReadValue();
                 LampPlacer.Tick(gm, cam, mp, mouse.leftButton.wasPressedThisFrame && !HUD.I.PointerOverUI(mp));
@@ -156,6 +166,12 @@ namespace HayHustle
                 if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) input.x += 1f;
                 if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) input.x -= 1f;
             }
+            bool touchRun = false;
+            if (!blocked && touch != null && touch.Move.sqrMagnitude > 0.0025f)
+            {
+                input = touch.Move;
+                touchRun = touch.Run;
+            }
             if (input.sqrMagnitude > 0.01f) task = TaskType.None; // manual control cancels click orders
             UpdateRepair(dt, input.sqrMagnitude > 0.01f);
 
@@ -163,7 +179,7 @@ namespace HayHustle
             Vector3 right = cam ? Vector3.ProjectOnPlane(cam.transform.right, Vector3.up).normalized : Vector3.right;
             Vector3 move = fwd * input.y + right * input.x;
             if (move.sqrMagnitude > 1f) move.Normalize();
-            float speed = kb != null && kb.leftShiftKey.isPressed ? RunSpeed : WalkSpeed;
+            float speed = (kb != null && kb.leftShiftKey.isPressed) || touchRun ? RunSpeed : WalkSpeed;
 
             if (!blocked && task != TaskType.None && move.sqrMagnitude < 0.01f) move = RunTask(ref speed);
             if (blocked) move = Vector3.zero;
@@ -179,6 +195,11 @@ namespace HayHustle
             Focus = blocked ? null : Interactable.Nearest(transform.position);
             if (!blocked && kb != null && kb.eKey.wasPressedThisFrame && Focus != null) Use(Focus);
             if (!blocked && kb != null && (kb.fKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame)) Swing();
+            if (!blocked && touch != null)
+            {
+                if (touch.UsePressed && Focus != null) Use(Focus);
+                if (touch.HitPressed) Swing();
+            }
 
             if (rig) rig.Tick(move.magnitude * speed, dt);
         }

@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 
 namespace HayHustle
 {
-    /// <summary>Third-person camera. Right-drag to rotate, scroll to zoom. Orbits the farm on the menus.</summary>
+    /// <summary>Third-person camera. Right-drag (or one-finger drag) to rotate, scroll (or pinch) to zoom. Orbits the farm on the menus.</summary>
     public class CameraFollow : MonoBehaviour
     {
         public Transform Target;
@@ -42,7 +42,19 @@ namespace HayHustle
 
             var mouse = Mouse.current;
             bool menuOpen = HUD.I != null && HUD.I.BlocksGameplay;
-            if (mouse != null && !menuOpen)
+            var touch = Device.Touch ? TouchControls.I : null;
+            if (touch != null)
+            {
+                // Phone: drag one finger to turn, pinch to zoom.
+                if (!menuOpen)
+                {
+                    Vector2 d = touch.LookDelta / Mathf.Max(1f, Screen.height) * 220f;
+                    Yaw += d.x;
+                    Pitch = Mathf.Clamp(Pitch - d.y * 0.6f, 15f, 75f);
+                    if (Mathf.Abs(touch.Pinch) > 0.0001f) Distance = Mathf.Clamp(Distance - touch.Pinch * 40f, 3f, 28f);
+                }
+            }
+            else if (mouse != null && !menuOpen)
             {
                 if (mouse.rightButton.isPressed)
                 {

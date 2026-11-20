@@ -14,9 +14,15 @@ namespace HayHustle
         static Transform ghost;
         static Renderer[] ghostParts;
         static bool valid;
+        /// <summary>Phone: the spot chosen by tapping, waiting for "Build here".</summary>
+        public static bool HasPending { get; private set; }
+        public static bool PendingValid => HasPending && valid;
+        static Vector3 pending;
         static Material okMat, badMat;
 
-        public static string Hint => Moving != null
+        public static string Hint => Device.Touch
+            ? (Moving != null ? "Moving a lamp post: tap a spot inside the farm wall, then Build here." : $"Placing a lamp post ({GameData.LampPrice} coins): tap a spot inside the farm wall, then Build here.")
+            : Moving != null
             ? "Moving a lamp post: click a spot inside the farm wall.   Esc = cancel"
             : $"Placing a lamp post ({GameData.LampPrice} coins): click a spot inside the farm wall.   Esc = cancel";
 
@@ -27,6 +33,7 @@ namespace HayHustle
         {
             Moving = lamp;
             Active = true;
+            HasPending = false;
             if (!ghost) BuildGhost();
             ghost.gameObject.SetActive(false);
             FX.Play(Sfx.Click, 0.3f);
@@ -36,6 +43,7 @@ namespace HayHustle
         {
             Active = false;
             Moving = null;
+            HasPending = false;
             if (ghost) ghost.gameObject.SetActive(false);
         }
 
@@ -73,6 +81,37 @@ namespace HayHustle
                 gm.BuildLampAt(p);
                 Cancel();
             }
+        }
+
+        /// <summary>Phone: a tap shows the lamp there (green/red); the HUD then offers "Build here".</summary>
+        public static void TouchTap(GameManager gm, Camera cam, Vector2 screenPos)
+        {
+            if (!ghost) BuildGhost();
+            var ray = cam.ScreenPointToRay(screenPos);
+            if (ray.direction.y > -0.0001f) return;
+            float t = -ray.origin.y / ray.direction.y;
+            pending = ray.origin + ray.direction * t;
+            pending.y = 0f;
+            HasPending = true;
+            ghost.gameObject.SetActive(true);
+            ghost.position = pending;
+            valid = SpotOk(gm, pending, out string why);
+            foreach (var r in ghostParts) r.sharedMaterial = valid ? okMat : badMat;
+            if (!valid) gm.Notify(why, Palette.UiRed);
+        }
+
+        /// <summary>Phone: the "Build here" button.</summary>
+        public static void ConfirmPending(GameManager gm)
+        {
+            if (!PendingValid) return;
+            if (Moving != null)
+            {
+                Moving.transform.position = pending;
+                FX.Text(pending + Vector3.up * 4f, "Lamp post moved!", Palette.UiGreen);
+                FX.Play(Sfx.Plant, 0.4f);
+            }
+            else gm.BuildLampAt(pending);
+            Cancel();
         }
 
         static bool SpotOk(GameManager gm, Vector3 p, out string why)

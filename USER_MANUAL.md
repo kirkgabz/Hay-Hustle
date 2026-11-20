@@ -317,7 +317,27 @@ Day 1: 100 coins   Day 2: water + 50   Day 3: free chick   Day 4: 250 coins
 Day 5: 6 eggs   Day 6: free adult sheep   Day 7: Mystery chest (maybe a Golden Hen!)  
 Missing a day resets the streak to Day 1.
 
-## 17. Menu & Settings
+## 17. Phone & Web
+
+**Playing on a phone**  
+Open the game's web address in your phone's browser and hold the phone **sideways**. To play it like an app: in the browser menu choose **Add to Home screen** (Android: Chrome menu; iPhone: Safari Share button) - it then opens full screen from its own icon.  
+  
+**Touch controls**  
+**Move**: put your thumb anywhere on the left side - a joystick appears. Push it all the way to run.  
+**Act**: tap anything on the farm (animals, plots, buildings, predators) - the same as clicking.  
+**HIT** (big red button): swing at a predator or zombie next to you.  
+**USE** (green button): use what you are standing next to (it is grey when there is nothing).  
+**Camera**: drag one finger on the right side to turn it, **pinch** with two fingers to zoom.  
+**Typing** (email, password, farm name): tap the box - a text box opens with your phone keyboard; tap **OK** when done.  
+**Lamp posts**: tap a spot to see the lamp there, then tap **Build here**.  
+Menu -> **Controls** switches between Auto, Touch and Mouse. Menu -> **Full screen** hides the browser bars.  
+  
+**Cloud save - the same farm everywhere**  
+When you are signed in, your farm is saved to your account in the cloud (every few seconds while you play, and when you leave). Sign in with the same email on your phone, PC or another browser and **Continue** loads the same farm - the newest one always wins.  
+The farm is also kept on the device, so it still plays without internet; it is uploaded the next time you sign in.  
+**Play offline** only saves on that device (in a browser, clearing the browser's data deletes it) - sign in to keep your farm safe.
+
+## 18. Menu & Settings
 
 **Menu** (button or Esc) pauses the game.  
   
@@ -327,10 +347,11 @@ Missing a day resets the streak to Day 1.
 **Confirm buys** - **Ask first** shows "Are you sure?" popups; **Don't ask** skips them for buying and selling.  
 **Replay tutorial** - shows the step-by-step guide again.  
 **Save & quit to title** - saves and goes back to the title screen.  
-**Quit game** - saves and closes the game.  
+**Controls** - Auto / Touch / Mouse (see Phone & Web).  
+**Quit game** - saves and closes the game (on the PC version; in a browser just close the tab).  
   
 **Account**: the first screen is **Sign in / Sign up** (email + password, no code or email link needed). Tick **Stay signed in** so you don't have to type it every time. **Play offline** skips signing in. Sign out from the title screen (bottom right).  
-**Saving**: the game also saves automatically every 30 seconds.  
+**Saving**: the game also saves automatically every 30 seconds - and to the cloud when you are signed in.  
 **Backups**: a copy of your farm is kept every time you click Continue and before a New Farm (the last 3). On the title screen, click **Restore backup** to go back to one of them. Your current save is kept aside first.  
 On the title screen, **Continue** loads your farm. **New Farm** starts over (it asks to confirm).
 

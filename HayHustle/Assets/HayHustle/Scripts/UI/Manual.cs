@@ -6,7 +6,7 @@ namespace HayHustle
         public static readonly string[] Titles =
         {
             "Controls", "Water & Grass", "Collecting", "Buildings", "Selling",
-            "Animals", "Predators", "Defense", "Workers", "Fields", "Orders", "Zombies", "Gates & Wood", "Survivors", "Crops & Food", "Rank & Rewards", "Menu & Settings"
+            "Animals", "Predators", "Defense", "Workers", "Fields", "Orders", "Zombies", "Gates & Wood", "Survivors", "Crops & Food", "Rank & Rewards", "Phone & Web", "Menu & Settings"
         };
 
         public static readonly string[] Pages =
@@ -272,6 +272,26 @@ namespace HayHustle
             "Day 5: 6 eggs   Day 6: free adult sheep   Day 7: Mystery chest (maybe a Golden Hen!)\n" +
             "Missing a day resets the streak to Day 1.",
 
+            // ---------------- Phone & Web ----------------
+            "<b>Playing on a phone</b>\n" +
+            "Open the game's web address in your phone's browser and hold the phone <b>sideways</b>. " +
+            "To play it like an app: in the browser menu choose <b>Add to Home screen</b> (Android: Chrome menu; iPhone: Safari Share button) - " +
+            "it then opens full screen from its own icon.\n\n" +
+            "<b>Touch controls</b>\n" +
+            "<b>Move</b>: put your thumb anywhere on the left side - a joystick appears. Push it all the way to run.\n" +
+            "<b>Act</b>: tap anything on the farm (animals, plots, buildings, predators) - the same as clicking.\n" +
+            "<b>HIT</b> (big red button): swing at a predator or zombie next to you.\n" +
+            "<b>USE</b> (green button): use what you are standing next to (it is grey when there is nothing).\n" +
+            "<b>Camera</b>: drag one finger on the right side to turn it, <b>pinch</b> with two fingers to zoom.\n" +
+            "<b>Typing</b> (email, password, farm name): tap the box - a text box opens with your phone keyboard; tap <b>OK</b> when done.\n" +
+            "<b>Lamp posts</b>: tap a spot to see the lamp there, then tap <b>Build here</b>.\n" +
+            "Menu -> <b>Controls</b> switches between Auto, Touch and Mouse. Menu -> <b>Full screen</b> hides the browser bars.\n\n" +
+            "<b>Cloud save - the same farm everywhere</b>\n" +
+            "When you are signed in, your farm is saved to your account in the cloud (every few seconds while you play, and when you leave). " +
+            "Sign in with the same email on your phone, PC or another browser and <b>Continue</b> loads the same farm - the newest one always wins.\n" +
+            "The farm is also kept on the device, so it still plays without internet; it is uploaded the next time you sign in.\n" +
+            "<b>Play offline</b> only saves on that device (in a browser, clearing the browser's data deletes it) - sign in to keep your farm safe.",
+
             // ---------------- Menu & Settings ----------------
             "<b>Menu</b> (button or Esc) pauses the game.\n\n" +
             "<b>Resume</b> - back to the farm.\n" +
@@ -280,11 +300,12 @@ namespace HayHustle
             "<b>Confirm buys</b> - <b>Ask first</b> shows \"Are you sure?\" popups; <b>Don't ask</b> skips them for buying and selling.\n" +
             "<b>Replay tutorial</b> - shows the step-by-step guide again.\n" +
             "<b>Save & quit to title</b> - saves and goes back to the title screen.\n" +
-            "<b>Quit game</b> - saves and closes the game.\n\n" +
+            "<b>Controls</b> - Auto / Touch / Mouse (see Phone & Web).\n" +
+            "<b>Quit game</b> - saves and closes the game (on the PC version; in a browser just close the tab).\n\n" +
             "<b>Account</b>: the first screen is <b>Sign in / Sign up</b> (email + password, no code or email link needed). " +
             "Tick <b>Stay signed in</b> so you don't have to type it every time. <b>Play offline</b> skips signing in. " +
             "Sign out from the title screen (bottom right).\n" +
-            "<b>Saving</b>: the game also saves automatically every 30 seconds.\n" +
+            "<b>Saving</b>: the game also saves automatically every 30 seconds - and to the cloud when you are signed in.\n" +
             "<b>Backups</b>: a copy of your farm is kept every time you click Continue and before a New Farm (the last 3). " +
             "On the title screen, click <b>Restore backup</b> to go back to one of them. Your current save is kept aside first.\n" +
             "On the title screen, <b>Continue</b> loads your farm. <b>New Farm</b> starts over (it asks to confirm).",

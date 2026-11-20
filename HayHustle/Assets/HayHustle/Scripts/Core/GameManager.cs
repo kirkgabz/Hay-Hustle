@@ -111,6 +111,8 @@ namespace HayHustle
             DayNight.OnNewDay += OnNewDay;
             Spawner = gameObject.AddComponent<PredatorSpawner>();
             gameObject.AddComponent<HUD>();
+            gameObject.AddComponent<TouchControls>();
+            Device.Load();
             Settings.Load();
 
             Time.timeScale = 0f; // the world is paused on the menus
@@ -122,6 +124,7 @@ namespace HayHustle
         void Update()
         {
             Notes.RemoveAll(n => n.Until < Time.unscaledTime);
+            CloudSave.Tick();
             if (Mode != GameMode.Playing) return;
             float dt = Time.deltaTime;
             if (dt <= 0f) return;
@@ -144,8 +147,10 @@ namespace HayHustle
             if (autosave <= 0f) { autosave = 30f; SaveGame(); }
         }
 
-        void OnApplicationQuit() => SaveGame();
-        void OnApplicationPause(bool paused) { if (paused) SaveGame(); }
+        void OnApplicationQuit() { SaveGame(); CloudSave.Flush(); }
+        void OnApplicationPause(bool paused) { if (paused) { SaveGame(); CloudSave.Flush(); } }
+        // In a browser this happens when you switch tabs/apps or lock the phone.
+        void OnApplicationFocus(bool focus) { if (!focus) { SaveGame(); CloudSave.Flush(); } }
 
         void OnNewDay()
         {
@@ -159,7 +164,7 @@ namespace HayHustle
 
         public void GoToTitle(bool save = true)
         {
-            if (save) SaveGame();
+            if (save) { SaveGame(); CloudSave.Flush(); }
             ClearWorld();
             Tutorial.Stop();
             Mode = GameMode.Title;
@@ -380,6 +385,8 @@ namespace HayHustle
             var d = new SaveData
             {
                 version = 4,
+                savedAt = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                ownerId = Backend.SignedIn ? Backend.UserId : "",
                 farmName = FarmName,
                 character = (int)Character,
                 coins = Coins + (Truck ? Truck.PendingPayment : 0),
@@ -440,6 +447,7 @@ namespace HayHustle
                 });
             }
             SaveSystem.Save(d);
+            CloudSave.Queue(JsonUtility.ToJson(d));
         }
 
         // ================= Economy =================

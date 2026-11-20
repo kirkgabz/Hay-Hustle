@@ -21,6 +21,8 @@ namespace HayHustle
         public static string UserId { get; private set; } = "";
         public static string AccessToken { get; private set; } = "";
         static string refreshToken = "";
+        static float tokenExpires;   // realtimeSinceStartup when the access token runs out
+        static bool remembered;
 
 #pragma warning disable 0649 // fields are filled in by JsonUtility
         [System.Serializable] class Credentials { public string email; public string password; }
@@ -68,6 +70,7 @@ namespace HayHustle
             if (SignedIn) Run(Logout(AccessToken));
             AccessToken = refreshToken = UserId = "";
             Offline = false;
+            CloudSave.Reset();
             PlayerPrefs.DeleteKey("hh_refresh");
             PlayerPrefs.Save();
         }
@@ -126,6 +129,8 @@ namespace HayHustle
 
                 AccessToken = r.access_token;
                 refreshToken = r.refresh_token ?? "";
+                tokenExpires = Time.realtimeSinceStartup + Mathf.Max(60, r.expires_in > 0 ? r.expires_in : 3600);
+                remembered = remember;
                 UserId = r.user != null ? r.user.id : "";
                 Email = r.user != null && !string.IsNullOrEmpty(r.user.email) ? r.user.email : Email;
                 Offline = false;
@@ -135,6 +140,34 @@ namespace HayHustle
                 PlayerPrefs.Save();
                 done(true, "");
             }
+        }
+
+        // ================= Database (cloud save) =================
+
+        /// <summary>Makes sure the access token is still valid (refreshes it a minute before it runs out).</summary>
+        public static IEnumerator EnsureToken()
+        {
+            if (!SignedIn || string.IsNullOrEmpty(refreshToken)) yield break;
+            if (Time.realtimeSinceStartup < tokenExpires - 60f) yield break;
+            bool finished = false;
+            yield return Post("/auth/v1/token?grant_type=refresh_token", JsonUtility.ToJson(new RefreshBody { refresh_token = refreshToken }), remembered,
+                (ok, err) => { finished = true; if (!ok) Debug.LogWarning("Hay Hustle: could not refresh sign-in - " + err); }, false);
+            if (!finished) Busy = false;
+        }
+
+        /// <summary>A request to the Supabase database API as the signed-in player (Row Level Security keeps players apart).</summary>
+        public static UnityWebRequest Rest(string method, string pathAndQuery, string json = null)
+        {
+            var req = new UnityWebRequest(Url + "/rest/v1/" + pathAndQuery, method)
+            {
+                downloadHandler = new DownloadHandlerBuffer(),
+                timeout = 20,
+            };
+            if (json != null) req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json));
+            req.SetRequestHeader("Content-Type", "application/json");
+            req.SetRequestHeader("apikey", PublishableKey);
+            req.SetRequestHeader("Authorization", "Bearer " + AccessToken);
+            return req;
         }
 
         static IEnumerator Logout(string token)

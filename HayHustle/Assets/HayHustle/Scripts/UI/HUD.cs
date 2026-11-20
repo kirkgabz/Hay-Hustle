@@ -27,9 +27,11 @@ namespace HayHustle
         public Panel Open = Panel.None;
         public bool BlocksGameplay => Open != Panel.None || confirm != null;
 
-        const float LogicalHeight = 900f;
+        /// <summary>Layout height in logical units: smaller on phones, so everything is drawn bigger.</summary>
+        static float LogicalHeight => Device.Touch ? 640f : 900f;
         float S = 1f, W = 1600f, H = 900f;
         int fontsForHeight = -1;
+        Texture2D circleTex;
 
         GUIStyle title, h1, h2, h2c, label, labelC, labelR, small, smallC, wrap, wrapC, tiny, tinyWrap, button, bigButton, prompt, textField, popupStyle, barStyle, tagStyle;
         Vector3? guideTarget;
@@ -96,6 +98,9 @@ namespace HayHustle
         {
             var gm = GameManager.I;
             if (gm == null) return;
+            WebInput.Poll();
+            if (Backend.SignedIn && CloudSave.TriedUser != Backend.UserId && !CloudSave.Syncing && gm.Mode == GameMode.Title)
+                CloudSave.Sync();   // after signing in: load the newest farm from the cloud
             if (gm.Mode == GameMode.CharacterSelect) WorldBuilder.TickStage(choice);
             if (gm.Mode != GameMode.Playing) return;
 
@@ -103,7 +108,7 @@ namespace HayHustle
             if (Time.timeScale != wantScale) Time.timeScale = wantScale;
 
             var kb = Keyboard.current;
-            if (kb == null) return;
+            if (kb == null || WebInput.IsOpen) return;
             if (confirm != null)
             {
                 if (kb.escapeKey.wasPressedThisFrame) confirm = null;
@@ -202,6 +207,115 @@ namespace HayHustle
 
         static string Hex(Color c) => ColorUtility.ToHtmlStringRGB(c);
 
+        // ================= Phone helpers =================
+
+        /// <summary>
+        /// A text box. In a phone browser it opens a web text box (so the phone keyboard appears);
+        /// everywhere else it is a normal Unity text field.
+        /// </summary>
+        string TextBox(Rect r, string value, int max, int kind, string titleText, bool hide)
+        {
+            value = value ?? "";
+            if (Device.Touch && WebInput.Available)
+            {
+                string shown = value.Length == 0 ? "<color=#8A8070>Tap to type</color>" : hide ? new string('*', value.Length) : value;
+                var st = new GUIStyle(textField) { richText = true };
+                if (GUI.Button(P(r), shown, st))
+                {
+                    string current = value;
+                    int k = kind;
+                    WebInput.Open(titleText, current, k, max, s => SetTextBoxValue(titleText, s));
+                }
+                return pendingText != null && pendingTextFor == titleText ? TakePendingText() : value;
+            }
+            if (hide) return GUI.PasswordField(P(r), value, '*', max, textField);
+            return GUI.TextField(P(r), value, max, textField);
+        }
+
+        string pendingText, pendingTextFor;
+        void SetTextBoxValue(string forBox, string s) { pendingText = s; pendingTextFor = forBox; }
+        string TakePendingText() { string s = pendingText; pendingText = null; pendingTextFor = null; return s; }
+
+        Texture2D Circle()
+        {
+            if (circleTex != null) return circleTex;
+            const int n = 128;
+            circleTex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            var px = new Color32[n * n];
+            for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                float d = new Vector2(x - n / 2f + 0.5f, y - n / 2f + 0.5f).magnitude / (n / 2f);
+                float a = Mathf.Clamp01((1f - d) * n / 2f);
+                px[y * n + x] = new Color32(255, 255, 255, (byte)(a * 255));
+            }
+            circleTex.SetPixels32(px);
+            circleTex.Apply();
+            return circleTex;
+        }
+
+        /// <summary>Draws a circle given in screen pixels (y up), e.g. the joystick and the round buttons.</summary>
+        void ScreenCircle(Vector2 centerPx, float radiusPx, Color c)
+        {
+            var old = GUI.color;
+            GUI.color = c;
+            GUI.DrawTexture(new Rect(centerPx.x - radiusPx, Screen.height - centerPx.y - radiusPx, radiusPx * 2f, radiusPx * 2f), Circle());
+            GUI.color = old;
+        }
+
+        void ScreenLabel(Vector2 centerPx, string text, GUIStyle st, Color c)
+        {
+            var old = st.normal.textColor;
+            st.normal.textColor = c;
+            GUI.Label(new Rect(centerPx.x - 200, Screen.height - centerPx.y - 30, 400, 60), text, st);
+            st.normal.textColor = old;
+        }
+
+        void DrawTouchControls(GameManager gm)
+        {
+            var t = TouchControls.I;
+            if (t == null) return;
+            // Joystick
+            ScreenCircle(t.JoyCenter, TouchControls.JoyRadius, new Color(1f, 1f, 1f, t.JoyActive ? 0.22f : 0.12f));
+            ScreenCircle(t.JoyKnob, TouchControls.JoyRadius * 0.45f, new Color(1f, 1f, 1f, t.JoyActive ? 0.75f : 0.4f));
+            if (!t.JoyActive) ScreenLabel(t.JoyCenter + Vector2.down * TouchControls.JoyRadius * 1.25f, "MOVE", tagStyle, new Color(1f, 1f, 1f, 0.6f));
+
+            // HIT button
+            ScreenCircle(TouchControls.HitCenter, TouchControls.HitRadius, t.HitHeld ? new Color(0.95f, 0.72f, 0.22f, 0.95f) : new Color(0.75f, 0.25f, 0.18f, 0.8f));
+            ScreenLabel(TouchControls.HitCenter, "HIT", barStyle, Color.white);
+
+            // USE button (only when there is something to use)
+            var p = gm.Player;
+            bool canUse = p && p.Focus != null;
+            ScreenCircle(TouchControls.UseCenter, TouchControls.UseRadius,
+                canUse ? (t.UseHeld ? new Color(0.95f, 0.72f, 0.22f, 0.95f) : new Color(0.28f, 0.5f, 0.2f, 0.85f)) : new Color(0.3f, 0.3f, 0.3f, 0.45f));
+            ScreenLabel(TouchControls.UseCenter, "USE", barStyle, canUse ? Color.white : new Color(1f, 1f, 1f, 0.5f));
+        }
+
+        void DrawPlacementButtons(GameManager gm)
+        {
+            float bw = 220, bh = 54;
+            float y = Device.Touch ? 170 : H - 230;
+            Rect bar = new Rect(W / 2f - (Device.Touch ? bw + 12 : bw / 2f + 6), y, Device.Touch ? bw * 2 + 24 : bw + 12, bh + 12);
+            PanelBg(bar);
+            float x = bar.x + 6;
+            if (Device.Touch)
+            {
+                GUI.enabled = LampPlacer.PendingValid;
+                if (Btn(new Rect(x, y + 6, bw, bh), LampPlacer.Moving != null ? "Move here" : $"Build here ({GameData.LampPrice})", bigButton)) LampPlacer.ConfirmPending(gm);
+                GUI.enabled = true;
+                x += bw + 12;
+            }
+            if (Btn(new Rect(x, y + 6, bw, bh), "Cancel", bigButton)) { LampPlacer.Cancel(); FX.Play(Sfx.Click, 0.2f); }
+        }
+
+        void DrawRotatePhone()
+        {
+            Block(new Rect(0, 0, W, H), new Color(0.06f, 0.05f, 0.04f, 1f));
+            Lbl(new Rect(20, H / 2f - 120, W - 40, 60), "Turn your phone sideways", h1);
+            Lbl(new Rect(40, H / 2f - 40, W - 80, 120), "Hay Hustle plays in landscape. Rotate your phone (and turn off rotation lock if it is on).", wrapC);
+        }
+
         // ================= Styles =================
 
         static Texture2D Tex1(Color c)
@@ -273,7 +387,11 @@ namespace HayHustle
             textField.padding = new RectOffset(10, 10, 4, 4);
 
             // Windows system font: much sharper than the default Unity font at small sizes.
+#if UNITY_WEBGL && !UNITY_EDITOR
+            uiFont = null;   // browsers can't use the computer's fonts - keep Unity's built-in font
+#else
             uiFont = Font.CreateDynamicFontFromOSFont(new[] { "Segoe UI", "Segoe UI Semibold", "Arial" }, 20);
+#endif
             if (uiFont != null)
                 foreach (var st in new[] { title, h1, h2, h2c, label, labelC, labelR, small, smallC, wrap, wrapC, tiny, tinyWrap, button, bigButton, prompt, textField, popupStyle, barStyle, tagStyle })
                     st.font = uiFont;
@@ -281,7 +399,7 @@ namespace HayHustle
 
         void ApplyFontSizes()
         {
-            title.fontSize = Px(92);
+            title.fontSize = Px(Device.Touch ? 64 : 92);
             h1.fontSize = Px(34);
             h2.fontSize = h2c.fontSize = Px(25);
             label.fontSize = labelC.fontSize = labelR.fontSize = Px(20);
@@ -305,8 +423,11 @@ namespace HayHustle
             S = Mathf.Max(0.45f, Screen.height / LogicalHeight);
             W = Screen.width / S;
             H = Screen.height / S;
-            if (fontsForHeight != Screen.height) { fontsForHeight = Screen.height; ApplyFontSizes(); }
+            int fontKey = Screen.height * 2 + (Device.Touch ? 1 : 0);
+            if (fontsForHeight != fontKey) { fontsForHeight = fontKey; ApplyFontSizes(); }
             if (Event.current.type == EventType.Repaint) uiRects.Clear();
+            if (Device.Portrait) { DrawRotatePhone(); return; }
+            if (WebInput.IsOpen) GUI.enabled = false;   // the web text box is on top
 
             bool modal = confirm != null;
             GUI.enabled = !modal;
@@ -333,11 +454,18 @@ namespace HayHustle
         {
             if (authEmail == null) authEmail = Backend.SavedEmail;
             Block(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.3f));
-            ShadowLabel(new Rect(0, 40, W, 120), "HAY HUSTLE", title, new Color(1f, 0.84f, 0.32f));
-
             bool signUp = authTab == 1;
             float bw = 460, x = (W - bw) / 2f;
-            Rect box = new Rect(x - 30, 180, bw + 60, signUp ? 560 : 480);
+            float boxTop = 180;
+            if (Device.Touch)
+            {
+                // Phone (sideways): the name on the left, the form in the middle from the top.
+                x = Mathf.Max(W * 0.5f - bw / 2f, Mathf.Min(W - bw - 50f, W * 0.62f - bw / 2f));
+                boxTop = Mathf.Max(10f, (H - (signUp ? 560 : 480)) / 2f);
+                ShadowLabel(new Rect(10, H / 2f - 60, x - 50, 120), "HAY\nHUSTLE", title, new Color(1f, 0.84f, 0.32f));
+            }
+            else ShadowLabel(new Rect(0, 40, W, 120), "HAY HUSTLE", title, new Color(1f, 0.84f, 0.32f));
+            Rect box = new Rect(x - 30, boxTop, bw + 60, signUp ? 560 : 480);
             PanelBg(box);
             float y = box.y + 24;
 
@@ -353,19 +481,17 @@ namespace HayHustle
 
             Lbl(new Rect(x, y, bw, 26), "Email", small);
             y += 28;
-            authEmail = GUI.TextField(P(new Rect(x, y, bw, 46)), authEmail ?? "", 120, textField);
+            authEmail = TextBox(new Rect(x, y, bw, 46), authEmail ?? "", 120, WebInput.Email, "Email", false);
             y += 58;
             Lbl(new Rect(x, y, bw, 26), "Password" + (signUp ? "  (at least 6 characters)" : ""), small);
             y += 28;
-            authPass = showPass ? GUI.TextField(P(new Rect(x, y, bw, 46)), authPass, 72, textField)
-                                : GUI.PasswordField(P(new Rect(x, y, bw, 46)), authPass, '*', 72, textField);
+            authPass = TextBox(new Rect(x, y, bw, 46), authPass, 72, WebInput.Password, "Password", !showPass);
             y += 58;
             if (signUp)
             {
                 Lbl(new Rect(x, y, bw, 26), "Confirm password", small);
                 y += 28;
-                authPass2 = showPass ? GUI.TextField(P(new Rect(x, y, bw, 46)), authPass2, 72, textField)
-                                     : GUI.PasswordField(P(new Rect(x, y, bw, 46)), authPass2, '*', 72, textField);
+                authPass2 = TextBox(new Rect(x, y, bw, 46), authPass2, 72, WebInput.Password, "Confirm password", !showPass);
                 y += 58;
             }
 
@@ -425,44 +551,69 @@ namespace HayHustle
         {
             if (!Backend.SignedIn && !Backend.Offline) { DrawAuth(gm); return; }
             Block(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.25f));
-            ShadowLabel(new Rect(0, 90, W, 130), "HAY HUSTLE", title, new Color(1f, 0.84f, 0.32f));
-            ShadowLabel(new Rect(0, 215, W, 44), "Grow it.  Guard it.  Hustle it.", h2c, Color.white);
+            float top = Device.Touch ? 4f : 90f;
+            ShadowLabel(new Rect(0, top, W, Device.Touch ? 90 : 130), "HAY HUSTLE", title, new Color(1f, 0.84f, 0.32f));
+            ShadowLabel(new Rect(0, top + (Device.Touch ? 84 : 125), W, 44), "Grow it.  Guard it.  Hustle it.", h2c, Color.white);
 
             if (showBackups) { DrawBackups(gm); return; }
+            if (CloudSave.Syncing)
+            {
+                Rect sb = CenterRect(560, 120);
+                PanelBg(sb);
+                Lbl(new Rect(sb.x, sb.y + 20, sb.width, 40), "Loading your farm from the cloud...", h2c);
+                Lbl(new Rect(sb.x, sb.y + 66, sb.width, 30), "One moment", smallC);
+                return;
+            }
             bool hasSave = SaveSystem.Exists;
             bool hasBackups = SaveSystem.ListBackups().Count > 0;
+            bool canQuit = !Device.IsWeb;   // a browser tab can't be quit from inside
             float bw = 360, x = (W - bw) / 2f;
-            Rect box = new Rect(x - 30, 300, bw + 60, (hasSave ? 300 : 220) + (hasBackups ? 80 : 0));
+            float rowH = Device.Touch ? 72 : 80;
+            Rect box = new Rect(x - 30, Device.Touch ? 140 : 300, bw + 60, 60 + rowH * ((hasSave ? 1 : 0) + 1 + (hasBackups ? 1 : 0) + (canQuit ? 1 : 0)) - 16);
             PanelBg(box);
             float y = box.y + 30;
             if (hasSave)
             {
                 if (Btn(new Rect(x, y, bw, 64), "Continue", bigButton)) gm.ContinueGame();
-                y += 80;
+                y += rowH;
             }
             if (Btn(new Rect(x, y, bw, 64), "New Farm", bigButton))
             {
                 if (hasSave) Confirm("Start a new farm?", "Your current farm will be replaced by a brand new one. This cannot be undone.", "New farm", gm.EnterCharacterSelect, true);
                 else gm.EnterCharacterSelect();
             }
-            y += 80;
+            y += rowH;
             if (hasBackups)
             {
                 if (Btn(new Rect(x, y, bw, 64), "Restore backup", bigButton)) showBackups = true;
-                y += 80;
+                y += rowH;
             }
-            if (Btn(new Rect(x, y, bw, 64), "Quit", bigButton))
+            if (canQuit && Btn(new Rect(x, y, bw, 64), "Quit", bigButton))
                 Confirm("Quit Hay Hustle?", "Your farm is saved automatically.", "Quit", Application.Quit, true);
             Lbl(new Rect(16, H - 36, 400, 28), "Hay Hustle  v0.5", tiny);
 
             // Account
             Rect acc = new Rect(W - 470, H - 74, 456, 60);
+            if (Backend.SignedIn)
+            {
+                // Cloud status above the account box
+                bool cloudOk = CloudSave.SyncedUser == Backend.UserId;
+                string cs = cloudOk ? CloudSave.Status : "Cloud not reached - playing the farm on this device.";
+                if (!string.IsNullOrEmpty(cs))
+                {
+                    float cw = Mathf.Min(W - 28f, CalcW(small, cs) + 40f + (cloudOk ? 0 : 130));
+                    Rect cr = new Rect(W - 14 - cw, acc.y - 52, cw, 44);
+                    PanelBg(cr);
+                    Lbl(new Rect(cr.x + 14, cr.y, cw - 28, cr.height), $"<color=#{Hex(cloudOk ? Palette.UiGreen : Palette.UiRed)}>{cs}</color>", small);
+                    if (!cloudOk && Btn(new Rect(cr.xMax - 124, cr.y + 6, 112, 32), "Try again")) CloudSave.Sync();
+                }
+            }
             PanelBg(acc);
             if (Backend.SignedIn)
             {
                 Lbl(new Rect(acc.x + 14, acc.y, 300, acc.height), $"Signed in as <b>{Backend.Email}</b>", small);
                 if (Btn(new Rect(acc.xMax - 130, acc.y + 10, 116, 40), "Sign out"))
-                    Confirm("Sign out?", "You will go back to the sign-in screen. Your farm stays saved on this PC.", "Sign out", () => { Backend.SignOut(); authTab = 0; }, true);
+                    Confirm("Sign out?", "You will go back to the sign-in screen. Your farm stays saved on this device and in the cloud.", "Sign out", () => { Backend.SignOut(); authTab = 0; }, true);
             }
             else
             {
@@ -547,7 +698,7 @@ namespace HayHustle
             Rect bottom = new Rect(W / 2f - 340, H - 150, 680, 132);
             PanelBg(bottom);
             Lbl(new Rect(bottom.x + 28, bottom.y + 18, 160, 46), "Farm name:", label);
-            farmNameInput = GUI.TextField(P(new Rect(bottom.x + 180, bottom.y + 18, 470, 46)), farmNameInput, 24, textField);
+            farmNameInput = TextBox(new Rect(bottom.x + 180, bottom.y + 18, 470, 46), farmNameInput, 24, WebInput.Text, "Farm name", false);
             if (Btn(new Rect(bottom.x + 180, bottom.y + 74, 470, 50), "Start Farming!", bigButton)) gm.StartNewGame(choice, farmNameInput);
             if (SaveSystem.Exists && Btn(new Rect(20, 20, 140, 46), "Back")) gm.GoToTitle(false);
         }
@@ -576,8 +727,16 @@ namespace HayHustle
             DrawMenuButtons(gm);
             DrawTutorialCard(gm);
             DrawArrivalCard(gm);
-            Lbl(new Rect(16, H - 30, W - 700, 24), "Click anything to act  -  WASD move  -  Shift run  -  E use  -  F/Space swing  -  Right-drag camera  -  Scroll zoom  -  Esc menu", tiny);
-            if (Open == Panel.None && confirm == null) DrawHover(gm);
+            if (Device.Touch)
+            {
+                if (Open == Panel.None && confirm == null) DrawTouchControls(gm);
+            }
+            else
+            {
+                Lbl(new Rect(16, H - 30, W - 700, 24), "Click anything to act  -  WASD move  -  Shift run  -  E use  -  F/Space swing  -  Right-drag camera  -  Scroll zoom  -  Esc menu", tiny);
+                if (Open == Panel.None && confirm == null) DrawHover(gm);
+            }
+            if (LampPlacer.Active && Open == Panel.None) DrawPlacementButtons(gm);
 
             switch (Open)
             {
@@ -636,6 +795,12 @@ namespace HayHustle
                 int n = gm.Inventory[(int)pd.Product];
                 if (n > 0) lines.Add($"{pd.Name}  <b>x{n}</b>");
             }
+            if (Device.Touch && lines.Count > 5)   // phones: keep the joystick area free
+            {
+                int more = lines.Count - 4;
+                lines.RemoveRange(4, lines.Count - 4);
+                lines.Add($"<color=#AAAAAA>+{more} more (Storage)</color>");
+            }
             Rect r = new Rect(14, 246, 240, 44 + Mathf.Max(1, lines.Count) * 25);
             PanelBg(r);
             Lbl(new Rect(r.x + 14, r.y + 8, 220, 28), "<b>Warehouse</b>", label);
@@ -656,7 +821,16 @@ namespace HayHustle
                     ? $"<color=#{Hex(Palette.UiGold)}>[E]</color>  {p.Focus.Prompt}"
                     : $"<color=#BBBBBB>{p.Focus.Prompt}</color>";
             if (text == null) return;
-            Rect r = new Rect(W / 2f - 470, H - 160, 940, 46);
+            float pw = Device.Touch ? Mathf.Clamp(W - 800f, 420f, 940f) : 940f;
+            Rect r = new Rect(W / 2f - pw / 2f, H - (Device.Touch ? 150 : 160), pw, 46);
+            if (Device.Touch && CalcW(prompt, text) > pw - 20f)
+            {
+                float th = CalcH(wrapC, text, pw - 20f);
+                r = new Rect(r.x, r.yMax - th - 16f, pw, th + 16f);
+                PanelBg(r);
+                Lbl(new Rect(r.x + 10, r.y + 8, pw - 20, th), text, wrapC);
+                return;
+            }
             PanelBg(r);
             Lbl(r, text, prompt);
         }
@@ -865,7 +1039,8 @@ namespace HayHustle
         {
             float y = gm.Mode == GameMode.Playing ? 166 : 16;
             int shown = 0;
-            for (int i = gm.Notes.Count - 1; i >= 0 && shown < 6; i--, shown++)
+            int maxShown = Device.Touch ? 3 : 6;   // phones: keep the right side free for the buttons
+            for (int i = gm.Notes.Count - 1; i >= 0 && shown < maxShown; i--, shown++)
             {
                 var n = gm.Notes[i];
                 float w = Mathf.Min(560f, CalcW(small, n.Text) + 30f);
