@@ -243,7 +243,7 @@ namespace HayHustle
 
         public const int LampPrice = 250;
         public const int MaxLamps = 10;
-        public const float LampRadius = 9f;
+        public const float LampRadius = 10f;   // matches the lit circle (about 8 plots across)
 
         // Fence upgrades slow predators inside your fields. Index = fence level.
         public static readonly int[] FenceUpgradeCost = { 1200, 3000 };

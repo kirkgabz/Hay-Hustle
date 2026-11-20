@@ -29,11 +29,12 @@ namespace HayHustle
 
             var lightGo = new GameObject("Light");
             lightGo.transform.SetParent(transform, false);
-            lightGo.transform.localPosition = new Vector3(0f, 3.2f, 0f);
+            lightGo.transform.localPosition = new Vector3(0f, 3.6f, 0f);
             pointLight = lightGo.AddComponent<Light>();
             pointLight.type = LightType.Point;
-            pointLight.range = 13f;
-            pointLight.intensity = 2.6f;
+            // Bright enough to light a circle about 8 plots wide (~20 m) before fading out.
+            pointLight.range = 22f;
+            pointLight.intensity = 28f;
             pointLight.color = new Color(1f, 0.82f, 0.55f);
             pointLight.shadows = LightShadows.None;
             pointLight.enabled = false;

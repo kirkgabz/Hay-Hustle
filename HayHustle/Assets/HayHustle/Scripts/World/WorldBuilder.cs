@@ -163,8 +163,8 @@ namespace HayHustle
             lampGo.transform.localPosition = new Vector3(0f, 2.4f, 0.3f);
             var lamp = lampGo.AddComponent<Light>();
             lamp.type = LightType.Point;
-            lamp.range = 10f;
-            lamp.intensity = 2.2f;
+            lamp.range = 14f;
+            lamp.intensity = 10f;
             lamp.color = new Color(1f, 0.78f, 0.45f);
             lamp.shadows = LightShadows.None;
             lamp.enabled = false;

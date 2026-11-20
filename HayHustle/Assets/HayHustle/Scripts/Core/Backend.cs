@@ -22,6 +22,7 @@ namespace HayHustle
         public static string AccessToken { get; private set; } = "";
         static string refreshToken = "";
 
+#pragma warning disable 0649 // fields are filled in by JsonUtility
         [System.Serializable] class Credentials { public string email; public string password; }
         [System.Serializable] class RefreshBody { public string refresh_token; }
         [System.Serializable] class User { public string id; public string email; }
@@ -34,6 +35,8 @@ namespace HayHustle
             public string id, email;                          // sign-up without a session returns the user here
             public string error, error_description, msg, message, error_code;
         }
+
+#pragma warning restore 0649
 
         public static void ResetRuntime()
         {
