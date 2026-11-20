@@ -26,7 +26,7 @@ namespace HayHustle
         public override void Interact(PlayerController player)
         {
             var gm = GameManager.I;
-            if (gm.Animals.Count >= gm.AnimalCapacity) { gm.Notify("Your pasture is full!", Palette.UiRed); return; }
+            if (gm.FieldFull(AnimalKind.Chicken)) { gm.Notify("The Chicken Run is full!", Palette.UiRed); return; }
             if (!gm.HasProduct(Product.Egg, 1)) { gm.Notify("You need 1 egg in the warehouse.", Palette.UiRed); return; }
             gm.RemoveProduct(Product.Egg, 1);
             hatching = true;
@@ -46,6 +46,13 @@ namespace HayHustle
             eggVisual.gameObject.SetActive(false);
             var gm = GameManager.I;
             bool golden = Random.value < 0.03f;
+            if (gm.FieldFull(AnimalKind.Chicken))
+            {
+                gm.AddProduct(Product.Egg);
+                gm.Notify("The Chicken Run is full - the egg went back to the warehouse.", Palette.UiRed, 5f);
+                FX.Text(transform.position + Vector3.up * 1.4f, "Chicken Run full!", Palette.UiRed);
+                return;
+            }
             gm.SpawnAnimal(AnimalKind.Chicken, Stage.Baby, transform.position + new Vector3(0f, 0f, -1.5f), golden);
             gm.AddXp(5);
             gm.Notify(golden ? "WOW! A rare Golden Hen chick hatched!" : "A chick hatched!", golden ? Palette.UiGold : Palette.UiGreen, 5f);

@@ -12,10 +12,12 @@ namespace HayHustle
         public Stage Stage;
         public float Age, Hunger = 1f, WellFedTime, BreedCooldown;
         public bool Rare;
+        public int Field;   // which fenced field this animal lives in
         public bool IsCarried { get; private set; }
         public bool InBarn { get; private set; }
 
         public AnimalDef Def => GameData.Animals[Kind];
+        FarmField Home => GameManager.I.Fields[Mathf.Clamp(Field, 0, GameManager.I.Fields.Count - 1)];
         public bool CanBreed => Stage != Stage.Baby && Hunger > 0.6f && !IsCarried && !InBarn && BreedCooldown <= 0f;
 
         const float PrimeAfterWellFed = 150f;
@@ -211,7 +213,7 @@ namespace HayHustle
 
                 if (eating)
                 {
-                    if (food == null || food.Amount <= 0.02f) food = gm.NearestGrassWithFood(pos);
+                    if (food == null || food.Amount <= 0.02f) food = gm.NearestGrassWithFood(pos, Field);
                     if (food == null)
                     {
                         eating = false;
@@ -233,7 +235,7 @@ namespace HayHustle
                 else target = WanderTarget(gm, dt, pos);
             }
 
-            target = GameManager.ClampToPasture(target);
+            target = Home.Clamp(target);
             Vector3 d = target - pos;
             d.y = 0f;
             float dist = d.magnitude;
@@ -261,7 +263,7 @@ namespace HayHustle
                 wanderWait -= dt;
                 if (wanderWait <= 0f)
                 {
-                    wanderTarget = gm.RandomPasturePoint();
+                    wanderTarget = Home.RandomPoint();
                     wanderWait = Random.Range(1.5f, 4f);
                 }
                 return pos;
@@ -286,7 +288,7 @@ namespace HayHustle
             Vector3 p = transform.position;
             transform.position = new Vector3(p.x, 0f, p.z);
             transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
-            wanderTarget = GameManager.ClampToPasture(p);
+            wanderTarget = Home.Clamp(p);
             panicUntil = Time.time + 1.5f;
         }
 

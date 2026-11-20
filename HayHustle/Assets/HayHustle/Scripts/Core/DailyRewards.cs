@@ -21,19 +21,39 @@ namespace HayHustle
         {
             new Reward { Label = "100 coins", Give = g => g.AddCoins(100) },
             new Reward { Label = "Full water + 50 coins", Give = g => { g.Water = g.WaterMax; g.AddCoins(50); } },
-            new Reward { Label = "Free chick", Give = g => g.SpawnAnimal(AnimalKind.Chicken, Stage.Baby, g.RandomPasturePoint()) },
+            new Reward { Label = "Free chick (or 60 coins)", Give = GiveChick },
             new Reward { Label = "250 coins", Give = g => g.AddCoins(250) },
             new Reward { Label = "6 eggs", Give = g => { if (!g.AddProduct(Product.Egg, 6)) g.AddCoins(60); } },
-            new Reward { Label = "Free adult sheep", Give = g => g.SpawnAnimal(AnimalKind.Sheep, Stage.Adult, g.RandomPasturePoint()) },
+            new Reward { Label = "Free adult sheep (or 350 coins)", Give = GiveSheep },
             new Reward { Label = "Mystery chest", Give = OpenChest },
         };
+
+        static void GiveChick(GameManager g)
+        {
+            if (!g.FieldFull(AnimalKind.Chicken)) g.SpawnAnimal(AnimalKind.Chicken, Stage.Baby, g.PointFor(AnimalKind.Chicken));
+            else
+            {
+                g.AddCoins(60);
+                g.Notify("The Chicken Run is full - you got 60 coins instead.", Palette.UiGold, 5f);
+            }
+        }
+
+        static void GiveSheep(GameManager g)
+        {
+            if (g.HasFieldFor(AnimalKind.Sheep) && !g.FieldFull(AnimalKind.Sheep)) g.SpawnAnimal(AnimalKind.Sheep, Stage.Adult, g.PointFor(AnimalKind.Sheep));
+            else
+            {
+                g.AddCoins(350);
+                g.Notify("No room in a Sheep Meadow yet - you got 350 coins instead.", Palette.UiGold, 5f);
+            }
+        }
 
         static void OpenChest(GameManager g)
         {
             float r = Random.value;
-            if (r < 0.25f)
+            if (r < 0.25f && !g.FieldFull(AnimalKind.Chicken))
             {
-                g.SpawnAnimal(AnimalKind.Chicken, Stage.Adult, g.RandomPasturePoint(), true);
+                g.SpawnAnimal(AnimalKind.Chicken, Stage.Adult, g.PointFor(AnimalKind.Chicken), true);
                 g.Notify("MYSTERY CHEST: a rare Golden Hen joined your farm!", Palette.UiGold, 6f);
             }
             else if (r < 0.6f)

@@ -38,6 +38,7 @@ namespace HayHustle
                 visual.Rotate(0f, 60f * dt, 0f);
                 bool blinkOff = life < 10f && Mathf.Repeat(Time.time * 4f, 1f) < 0.35f; // about to spoil
                 visual.gameObject.SetActive(!blinkOff);
+
             }
 
             if (life <= 0f)
@@ -51,7 +52,7 @@ namespace HayHustle
             }
 
             var player = gm.Player;
-            if (player && GameManager.FlatDistance(player.transform.position, transform.position) < 1.5f)
+            if (player && GameManager.FlatDistance(player.transform.position, transform.position) < 1.8f)
             {
                 if (gm.AddProduct(Product))
                 {
@@ -60,6 +61,7 @@ namespace HayHustle
                     FX.Burst(transform.position + Vector3.up * 0.3f, Palette.Gold, 8, 0.07f, 2f);
                     FX.Play(Sfx.Pickup);
                     player.PlayAnim(ActAnim.Pickup, 0.35f);
+                    Tutorial.Event("collect");
                     Destroy(gameObject);
                 }
                 else if (Time.time > nextFullWarning)

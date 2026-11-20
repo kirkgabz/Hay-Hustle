@@ -18,19 +18,22 @@ namespace HayHustle
             {
                 if (Locked) return $"Breeding Barn - unlocks at Farm Rank {GameData.BarnUnlockRank}";
                 if (Busy) return $"Breeding Barn - {a.Def.Plural} are breeding... {Mathf.CeilToInt(timer)}s";
-                return FindPair(out var p, out _)
-                    ? $"Breeding Barn - breed 2 {p.Def.Plural}"
-                    : "Breeding Barn - needs 2 well-fed adult sheep or cows";
+                if (FindPair(out var p, out _)) return $"Breeding Barn - breed 2 {p.Def.Plural}";
+                var gm = GameManager.I;
+                if (FindPair(out var q, out _, true) && gm.FieldFull(q.Kind))
+                    return $"Breeding Barn - the {gm.FieldFor(q.Kind).Def.Name} is full, no room for a baby";
+                return "Breeding Barn - needs 2 well-fed adult sheep or cows";
             }
         }
 
         public override bool CanInteract => !Locked && !Busy && FindPair(out _, out _);
 
-        bool FindPair(out Animal first, out Animal second)
+        bool FindPair(out Animal first, out Animal second, bool ignoreRoom = false)
         {
             foreach (var kind in new[] { AnimalKind.Sheep, AnimalKind.Cow })
             {
                 first = second = null;
+                if (!ignoreRoom && GameManager.I.FieldFull(kind)) continue; // no room for a baby
                 foreach (var an in GameManager.I.Animals)
                 {
                     if (!an || an.Kind != kind || !an.CanBreed) continue;
@@ -45,7 +48,6 @@ namespace HayHustle
         public override void Interact(PlayerController player)
         {
             var gm = GameManager.I;
-            if (gm.Animals.Count >= gm.AnimalCapacity) { gm.Notify("Your pasture is full!", Palette.UiRed); return; }
             if (!FindPair(out a, out b)) return;
             a.EnterBarn();
             b.EnterBarn();
@@ -67,10 +69,22 @@ namespace HayHustle
             bool bothPrime = a.Stage == Stage.Prime && b.Stage == Stage.Prime;
             bool rare = Random.value < (bothPrime ? 0.1f : 0.02f);
             var kind = a.Kind;
+            int field = a.Field;
             a.ExitBarn(Door + transform.right * 1.2f);
             b.ExitBarn(Door - transform.right * 1.2f);
             a = b = null;
-            var baby = gm.SpawnAnimal(kind, Stage.Baby, Door, rare);
+            if (gm.FieldFull(kind))
+            {
+                // The field filled up while they were breeding: sell the baby instead.
+                var def = GameData.Animals[kind];
+                int coins = Mathf.RoundToInt(def.SellBase * 0.4f * (rare ? 5f : 1f));
+                gm.AddCoins(coins);
+                gm.Notify($"A baby {def.BabyName.ToLower()} was born, but the {gm.FieldFor(kind).Def.Name} is full - sold for {coins} coins.", Palette.UiGold, 6f);
+                FX.Text(Door + Vector3.up * 1.5f, $"Field full: +{coins} coins", Palette.UiGold);
+                FX.Play(Sfx.Coin, 0.5f);
+                return;
+            }
+            var baby = gm.SpawnAnimal(kind, Stage.Baby, Door, rare, field);
             gm.AddXp(10);
             FX.Text(Door + Vector3.up * 1.5f, rare ? $"RARE {baby.Def.RareName}!" : $"Baby {baby.Def.BabyName.ToLower()} born!", rare ? Palette.UiGold : Palette.UiGreen, 1.2f);
             FX.Burst(Door + Vector3.up * 0.5f, rare ? Palette.Gold : Palette.Pink, 14, 0.1f, 3f);

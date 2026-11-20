@@ -14,7 +14,7 @@ namespace HayHustle
     }
 
     /// <summary>
-    /// Central game state: economy, farm rank, animals, saving.
+    /// Central game state: economy, farm rank, fields, animals, workers, orders, saving.
     /// It creates itself automatically when you press Play in any scene.
     /// </summary>
     public class GameManager : MonoBehaviour
@@ -28,32 +28,43 @@ namespace HayHustle
             new GameObject("Hay Hustle").AddComponent<GameManager>();
         }
 
-        // ---- Farm pasture area (animals stay inside) ----
+        /// <summary>Middle of the farm. Predators come from the forest around it.</summary>
         public static readonly Vector3 PastureCenter = new Vector3(0f, 0f, -7f);
-        public const float PastureMinX = -11f, PastureMaxX = 11f, PastureMinZ = -17f, PastureMaxZ = 3f;
 
         // ---- State ----
-        public GameMode Mode { get; set; } = GameMode.Title;
+        public GameMode Mode { get; private set; } = GameMode.Title;
         public string FarmName = "My Farm";
         public CharacterChoice Character;
         public int Coins, Water = 10, WaterMax = 10, Xp;
-        public int WarehouseCapacity = 40, AnimalCapacity = 30;
+        public int WarehouseCapacity = 40;
         public int[] Inventory = new int[GameData.ProductCount];
         public int PredatorsCaught, AnimalsLost;
         public string LastRewardDate = "";
         public int RewardStreak;
         public Product WantedProduct = Product.Egg;
         public int Mess;                       // spoiled food lying around - attracts rats
-        public Vector3 WarehouseDoor;          // where rats go to steal
+        public int FenceLevel, Traps, Lamps;
+        public bool TutorialDone;
 
         public int Rank => GameData.RankFromXp(Xp);
+        public int AnimalCapacity => Fields.Where(f => f.Owned).Sum(f => f.Def.Capacity);
 
+        // ---- World ----
+        public readonly List<FarmField> Fields = new List<FarmField>();
         public readonly List<Animal> Animals = new List<Animal>();
         public readonly List<Predator> Predators = new List<Predator>();
         public readonly List<Helper> Helpers = new List<Helper>();
+        public readonly List<Worker> Workers = new List<Worker>();
+        public readonly List<ProcessingBuilding> Buildings = new List<ProcessingBuilding>();
+        public readonly List<Trap> TrapObjects = new List<Trap>();
+        public readonly List<Lamp> LampObjects = new List<Lamp>();
         public readonly List<GrassPatch> Grass = new List<GrassPatch>();
         public readonly List<Note> Notes = new List<Note>();
+        public readonly OrderBook Orders = new OrderBook();
 
+        public Vector3 WarehouseDoor;          // where rats go to steal
+        public Vector3 WellPosition;
+        public Transform WarehouseTransform, OrderBoardTransform;
         public PlayerController Player { get; private set; }
         public DayNightCycle DayNight { get; private set; }
         public PredatorSpawner Spawner { get; private set; }
@@ -69,26 +80,26 @@ namespace HayHustle
             I = this;
             Application.targetFrameRate = 60;
 
+            gameObject.AddComponent<FX>();
             WorldBuilder.Build(this);
             DayNight = gameObject.AddComponent<DayNightCycle>();
             DayNight.Sun = WorldBuilder.Sun;
-            DayNight.OnNewDay += () =>
-            {
-                Notify($"Day {DayNight.Day} begins on {FarmName}.", Palette.UiGold, 5f);
-                RerollWanted();
-            };
+            DayNight.OnNewDay += OnNewDay;
             Spawner = gameObject.AddComponent<PredatorSpawner>();
-            gameObject.AddComponent<FX>();
             gameObject.AddComponent<HUD>();
+            Settings.Load();
 
-            Mode = SaveSystem.Exists ? GameMode.Title : GameMode.CharacterSelect;
-            Time.timeScale = 0f; // world is paused on the menus
+            Time.timeScale = 0f; // the world is paused on the menus
+            if (SaveSystem.Exists) GoToTitle(false);
+            else EnterCharacterSelect();
         }
 
         void Update()
         {
             Notes.RemoveAll(n => n.Until < Time.unscaledTime);
             if (Mode != GameMode.Playing) return;
+            float dt = Time.deltaTime;
+            if (dt <= 0f) return;
 
             bool night = DayNight.IsNight;
             if (night != wasNight)
@@ -98,18 +109,52 @@ namespace HayHustle
                     night ? Palette.UiRed : Palette.UiGold, 5f);
             }
 
-            autosave -= Time.deltaTime;
+            if (!Tutorial.HoldsPredators) Orders.Tick(this, dt);
+
+            autosave -= dt;
             if (autosave <= 0f) { autosave = 30f; SaveGame(); }
         }
 
         void OnApplicationQuit() => SaveGame();
         void OnApplicationPause(bool paused) { if (paused) SaveGame(); }
 
+        void OnNewDay()
+        {
+            Notify($"Day {DayNight.Day} begins on {FarmName}.", Palette.UiGold, 5f);
+            RerollWanted();
+            PayWages();
+        }
+
+        // ================= Screens =================
+
+        public void GoToTitle(bool save = true)
+        {
+            if (save) SaveGame();
+            ClearWorld();
+            Tutorial.Stop();
+            Mode = GameMode.Title;
+            Time.timeScale = 0f;
+            WorldBuilder.ShowStage(false);
+            CameraRig.Target = null;
+            CameraRig.ClearShowcase();
+            if (HUD.I) HUD.I.Open = HUD.Panel.None;
+        }
+
+        public void EnterCharacterSelect()
+        {
+            Mode = GameMode.CharacterSelect;
+            Time.timeScale = 0f;
+            WorldBuilder.ShowStage(true);
+            CameraRig.Target = null;
+            CameraRig.Showcase(WorldBuilder.StageCameraPos, WorldBuilder.StageLookAt);
+        }
+
         // ================= Starting / loading =================
 
         public void StartNewGame(CharacterChoice choice, string farmName)
         {
             ClearWorld();
+            WorldBuilder.ShowStage(false);
             FarmName = string.IsNullOrWhiteSpace(farmName) ? "My Farm" : farmName.Trim();
             Character = choice;
             Coins = GameData.StartCoins;
@@ -121,21 +166,28 @@ namespace HayHustle
             LastRewardDate = "";
             RewardStreak = 0;
             Mess = 0;
+            FenceLevel = 0;
+            Traps = 0;
+            Lamps = 0;
+            TutorialDone = false;
             DayNight.TimeOfDay = 0.3f;
             DayNight.Day = 1;
 
-            for (int i = 0; i < Grass.Count; i++) Grass[i].SetAmount(i % 3 == 0 ? 1f : 0f);
-            for (int i = 0; i < 3; i++) SpawnAnimal(AnimalKind.Chicken, Stage.Adult, RandomPasturePoint());
+            WorldBuilder.ResetFields(this);
+            WorldBuilder.ApplyFenceLevel(this);
+            var home = Fields[0].Grass;
+            for (int i = 0; i < home.Count; i++) home[i].SetAmount(i % 3 == 0 ? 1f : 0f);
+            for (int i = 0; i < 3; i++) SpawnAnimal(AnimalKind.Chicken, Stage.Adult, Fields[0].RandomPoint(), false, 0);
 
             RerollWanted();
             BeginPlay();
-            Notify("Tip: plant grass (E) so your animals can eat. Press H for help.", Palette.UiWhite, 8f);
+            Tutorial.Begin();
         }
 
         public void ContinueGame()
         {
             var d = SaveSystem.Load();
-            if (d == null) { Mode = GameMode.CharacterSelect; return; }
+            if (d == null) { EnterCharacterSelect(); return; }
 
             ClearWorld();
             FarmName = d.farmName;
@@ -148,11 +200,33 @@ namespace HayHustle
             System.Array.Clear(Inventory, 0, Inventory.Length);
             if (d.inventory != null)
                 for (int i = 0; i < Mathf.Min(Inventory.Length, d.inventory.Length); i++) Inventory[i] = d.inventory[i];
-            if (d.grass != null)
-                for (int i = 0; i < Mathf.Min(Grass.Count, d.grass.Length); i++) Grass[i].SetAmount(d.grass[i]);
+
+            // Fields (older saves only had the home pasture in 'grass')
+            WorldBuilder.ResetFields(this);
+            if (d.fields != null && d.fields.Count > 0)
+            {
+                foreach (var fs in d.fields)
+                {
+                    if (fs.index < 0 || fs.index >= Fields.Count) continue;
+                    var f = Fields[fs.index];
+                    if (fs.owned && !f.Owned) WorldBuilder.BuildField(this, f);
+                    if (fs.grass != null)
+                        for (int i = 0; i < Mathf.Min(f.Grass.Count, fs.grass.Length); i++) f.Grass[i].SetAmount(fs.grass[i]);
+                }
+            }
+            else if (d.grass != null)
+            {
+                var home = Fields[0].Grass;
+                for (int i = 0; i < Mathf.Min(home.Count, d.grass.Length); i++) home[i].SetAmount(d.grass[i]);
+            }
+
             foreach (var s in d.animals)
             {
-                var a = SpawnAnimal((AnimalKind)s.kind, (Stage)s.stage, new Vector3(s.x, 0f, s.z), s.rare);
+                // Each kind lives in its own field. Older saves kept everything in the first field.
+                var home = FieldFor((AnimalKind)s.kind);
+                int field = home != null && home.Owned ? home.Index
+                    : s.field >= 0 && s.field < Fields.Count && Fields[s.field].Owned ? s.field : 0;
+                var a = SpawnAnimal((AnimalKind)s.kind, (Stage)s.stage, Fields[field].Clamp(new Vector3(s.x, 0f, s.z)), s.rare, field);
                 a.Age = s.age;
                 a.Hunger = s.hunger;
                 a.WellFedTime = s.wellFed;
@@ -165,8 +239,16 @@ namespace HayHustle
             RewardStreak = d.rewardStreak;
             WantedProduct = (Product)Mathf.Clamp(d.wanted, 0, GameData.ProductCount - 1);
             Mess = d.mess;
+            FenceLevel = Mathf.Clamp(d.fenceLevel, 0, GameData.FenceSlow.Length - 1);
+            WorldBuilder.ApplyFenceLevel(this);
+            Traps = 0;
+            for (int i = 0; i < Mathf.Min(d.traps, GameData.MaxTraps); i++) { Traps++; PlaceTrap(); }
+            Lamps = 0;
+            for (int i = 0; i < Mathf.Min(d.lamps, GameData.MaxLamps); i++) { Lamps++; PlaceLamp(); }
             for (int i = 0; i < d.cats; i++) SpawnHelper(HelperKind.Cat);
             for (int i = 0; i < d.dogs; i++) SpawnHelper(HelperKind.Dog);
+            if (d.workers != null) foreach (var w in d.workers) SpawnWorker((WorkerKind)w);
+            TutorialDone = d.tutorialDone || d.version < 2;
             BeginPlay();
         }
 
@@ -174,6 +256,7 @@ namespace HayHustle
         {
             if (Player) Destroy(Player.gameObject);
             Player = WorldBuilder.SpawnPlayer(Character);
+            CameraRig.ClearShowcase();
             CameraRig.Target = Player.transform;
             CameraRig.Yaw = 180f;
 
@@ -181,7 +264,8 @@ namespace HayHustle
             Time.timeScale = 1f;
             wasNight = DayNight.IsNight;
             Spawner.ResetTimer();
-            if (DailyRewards.CanClaim(this)) HUD.I.Open = HUD.Panel.Rewards;
+            Orders.Clear();
+            if (DailyRewards.CanClaim(this) && TutorialDone) HUD.I.Open = HUD.Panel.Rewards;
             Notify($"Welcome to {FarmName}!", Palette.UiGold, 5f);
             SaveGame();
         }
@@ -194,8 +278,17 @@ namespace HayHustle
             Predators.Clear();
             foreach (var h in Helpers.ToArray()) if (h) Destroy(h.gameObject);
             Helpers.Clear();
+            foreach (var w in Workers.ToArray()) if (w) Destroy(w.gameObject);
+            Workers.Clear();
+            foreach (var t in TrapObjects.ToArray()) if (t) Destroy(t.gameObject);
+            TrapObjects.Clear();
+            foreach (var l in LampObjects.ToArray()) if (l) Destroy(l.gameObject);
+            LampObjects.Clear();
             foreach (var pk in ProductPickup.All.ToArray()) if (pk) Destroy(pk.gameObject);
+            if (Player) Destroy(Player.gameObject);
+            Player = null;
             Spawner.ResetTimer();
+            Orders.Clear();
             if (Truck) Truck.ResetTruck();
         }
 
@@ -204,6 +297,7 @@ namespace HayHustle
             if (Mode != GameMode.Playing) return;
             var d = new SaveData
             {
+                version = 3,
                 farmName = FarmName,
                 character = (int)Character,
                 coins = Coins + (Truck ? Truck.PendingPayment : 0),
@@ -221,11 +315,20 @@ namespace HayHustle
                 mess = Mess,
                 cats = CountHelpers(HelperKind.Cat),
                 dogs = CountHelpers(HelperKind.Dog),
+                fenceLevel = FenceLevel,
+                traps = Traps,
+                lamps = Lamps,
+                tutorialDone = TutorialDone || !Tutorial.Active,
                 inventory = (int[])Inventory.Clone(),
-                grass = new float[Grass.Count],
             };
             if (Truck) for (int i = 0; i < d.inventory.Length; i++) d.inventory[i] += Truck.Cargo[i]; // unsent cargo goes back
-            for (int i = 0; i < Grass.Count; i++) d.grass[i] = Grass[i].Amount;
+            foreach (var f in Fields)
+            {
+                var fs = new FieldSave { index = f.Index, owned = f.Owned, grass = new float[f.Grass.Count] };
+                for (int i = 0; i < f.Grass.Count; i++) fs.grass[i] = f.Grass[i].Amount;
+                d.fields.Add(fs);
+            }
+            foreach (var w in Workers) if (w) d.workers.Add((int)w.Kind);
             foreach (var a in Animals)
             {
                 if (!a) continue;
@@ -233,7 +336,7 @@ namespace HayHustle
                 d.animals.Add(new AnimalSave
                 {
                     kind = (int)a.Kind, stage = (int)a.Stage, age = a.Age, hunger = a.Hunger,
-                    wellFed = a.WellFedTime, rare = a.Rare, x = p.x, z = p.z
+                    wellFed = a.WellFedTime, rare = a.Rare, x = p.x, z = p.z, field = a.Field
                 });
             }
             SaveSystem.Save(d);
@@ -265,10 +368,26 @@ namespace HayHustle
         public bool HasProduct(Product p, int n) => Inventory[(int)p] >= n;
         public void RemoveProduct(Product p, int n) => Inventory[(int)p] = Mathf.Max(0, Inventory[(int)p] - n);
         public int ProductPrice(Product p) => GameData.Products[p].Price * (p == WantedProduct ? 2 : 1);
+        public int QuickSellPrice(Product p) => Mathf.Max(1, Mathf.RoundToInt(ProductPrice(p) * GameData.QuickSellRate));
+
+        /// <summary>Instant sale from the warehouse at 70% of the truck price.</summary>
+        public void QuickSell(Product p, int n)
+        {
+            n = Mathf.Min(n, Inventory[(int)p]);
+            if (n <= 0) return;
+            int coins = n * QuickSellPrice(p);
+            RemoveProduct(p, n);
+            AddCoins(coins);
+            AddXp(Mathf.Max(1, n / 2));
+            FX.Play(Sfx.Coin, 0.6f);
+            if (WarehouseTransform) FX.Text(WarehouseTransform.position + Vector3.up * 5f, $"Sold {n} {GameData.ProductName(p)}: +{coins} coins", Palette.UiGold, 1.1f);
+            Notify($"Quick sold {n} {GameData.ProductName(p)} for {coins} coins.", Palette.UiGold);
+        }
 
         public void RerollWanted()
         {
-            var options = GameData.Products.Values.Where(d => d.UnlockRank <= Rank).Select(d => d.Product).ToList();
+            var options = GameData.Products.Values.Where(d => d.UnlockRank <= Rank && Obtainable(d.Product)).Select(d => d.Product).ToList();
+            if (options.Count == 0) options.Add(Product.Egg);
             WantedProduct = options[Random.Range(0, options.Count)];
             Notify($"Market news: {GameData.ProductName(WantedProduct)} sells for DOUBLE today!", Palette.UiGold, 6f);
         }
@@ -289,26 +408,204 @@ namespace HayHustle
             {
                 FX.Text(Player.transform.position + Vector3.up * 2.8f, $"FARM RANK {r}!", Palette.UiGold, 1.6f);
                 FX.Burst(Player.transform.position + Vector3.up * 1.5f, Palette.Gold, 20, 0.12f, 4f);
+                Player.PlayAnim(ActAnim.Cheer, 1.2f);
             }
             foreach (var a in GameData.Animals.Values)
-                if (a.UnlockRank == r) Notify($"Unlocked: {a.Plural} in the shop (press B)", Palette.UiGreen, 6f);
+                if (a.UnlockRank == r) Notify($"Unlocked: {a.Plural} in the shop", Palette.UiGreen, 6f);
             foreach (var rec in GameData.Recipes)
                 if (rec.UnlockRank == r) Notify($"Unlocked: {rec.Building} ({GameData.ProductName(rec.Input)} -> {GameData.ProductName(rec.Output)})", Palette.UiGreen, 6f);
             if (r == GameData.BarnUnlockRank) Notify("Unlocked: Breeding Barn", Palette.UiGreen, 6f);
             foreach (var h in GameData.Helpers.Values)
-                if (h.UnlockRank == r) Notify($"Unlocked: {h.Name} helper in the shop (press B)", Palette.UiGreen, 6f);
+                if (h.UnlockRank == r) Notify($"Unlocked: {h.Name} helper in the shop", Palette.UiGreen, 6f);
+            foreach (var w in GameData.Workers.Values)
+                if (w.UnlockRank == r) Notify($"Unlocked: hire a {w.Name} in the shop (Workers)", Palette.UiGreen, 6f);
+            foreach (var f in GameData.Fields)
+                if (f.UnlockRank == r && f.Price > 0) Notify($"Unlocked: buy the {f.Name} to keep {GameData.Animals[f.Kind].Plural}", Palette.UiGreen, 6f);
             foreach (var p in GameData.Predators.Values)
                 if (p.MinRank == r && r > 1) Notify($"Watch out: {p.Name.ToLower()}s now hunt your farm{(p.NightOnly ? " at night" : "")}!", Palette.UiRed, 6f);
         }
 
+        // ================= Fields =================
+
+        public FarmField FieldAt(Vector3 pos)
+        {
+            foreach (var f in Fields) if (f.Owned && f.Contains(pos)) return f;
+            return null;
+        }
+
+        public bool InOwnedField(Vector3 pos) => FieldAt(pos) != null;
+
+        public int CountInField(int field) => Animals.Count(a => a && a.Field == field);
+
+        /// <summary>The field that is home to this kind of animal.</summary>
+        public FarmField FieldFor(AnimalKind kind) => Fields.FirstOrDefault(f => f.Def.Kind == kind);
+        public bool HasFieldFor(AnimalKind kind) { var f = FieldFor(kind); return f != null && f.Owned; }
+        public bool FieldFull(AnimalKind kind) { var f = FieldFor(kind); return f == null || CountInField(f.Index) >= f.Def.Capacity; }
+        public Vector3 PointFor(AnimalKind kind) { var f = FieldFor(kind); return f != null && f.Owned ? f.RandomPoint() : Fields[0].RandomPoint(); }
+
+        /// <summary>Can the player make this product with what they own now?</summary>
+        public bool Obtainable(Product p)
+        {
+            var maker = GameData.Animals.Values.FirstOrDefault(a => a.Produces == p);
+            if (maker != null) return Rank >= maker.UnlockRank && HasFieldFor(maker.Kind);
+            var r = GameData.Recipes.FirstOrDefault(x => x.Output == p);
+            return r != null && Rank >= r.UnlockRank && Obtainable(r.Input);
+        }
+
+        /// <summary>Explains where a product comes from, and where to go (for the "Show" button).</summary>
+        public string HowToGet(Product p, out Vector3? target)
+        {
+            target = null;
+            var r = GameData.Recipes.FirstOrDefault(x => x.Output == p);
+            if (r != null)
+            {
+                string inp = $"{r.InputAmount} {GameData.ProductName(r.Input)}";
+                if (Rank < r.UnlockRank) return $"Made at the {r.Building} (unlocks at Farm Rank {r.UnlockRank}) from {inp}.";
+                var b = Buildings.FirstOrDefault(x => x && x.Recipe == r);
+                if (b) target = b.FrontPosition;
+                string need = HasProduct(r.Input, r.InputAmount) ? "" : $" First get {GameData.ProductName(r.Input)}: " + HowToGet(r.Input, out _);
+                return $"Click the {r.Building} to make it from {inp}.{need}";
+            }
+            var maker = GameData.Animals.Values.FirstOrDefault(a => a.Produces == p);
+            if (maker == null) return "";
+            var field = FieldFor(maker.Kind);
+            if (Rank < maker.UnlockRank) return $"Comes from {maker.Plural} (unlock at Farm Rank {maker.UnlockRank}).";
+            if (!field.Owned)
+            {
+                if (field.Sign) target = field.Sign.transform.position;
+                return $"Comes from {maker.Plural}. Buy the {field.Def.Name} ({field.Def.Price} coins), then buy {maker.Plural} in the Shop.";
+            }
+            target = field.Center;
+            if (CountAnimals(maker.Kind) == 0) return $"Buy {maker.Plural} in the Shop - they live in the {field.Def.Name} and make {GameData.ProductName(p)}.";
+            return $"Your {maker.Plural} in the {field.Def.Name} make it. Keep them fed and click the {GameData.ProductName(p)} to collect.";
+        }
+
+        public void BuyField(int index)
+        {
+            var f = Fields[index];
+            if (f.Owned || Rank < f.Def.UnlockRank) return;
+            if (!Spend(f.Def.Price)) return;
+            WorldBuilder.BuildField(this, f);
+            WorldBuilder.ApplyFenceLevel(this);
+            foreach (var g in f.Grass) g.SetAmount(0.6f);
+            AddXp(25);
+            Notify($"You bought the {f.Def.Name}! Now you can keep up to {f.Def.Capacity} {GameData.Animals[f.Def.Kind].Plural} (Shop > Animals).", Palette.UiGold, 6f);
+            FX.Play(Sfx.RankUp, 0.6f);
+            FX.Text(f.Gate + Vector3.up * 2.5f, $"{f.Def.Name} is yours!", Palette.UiGold, 1.4f);
+            FX.Burst(f.Gate + Vector3.up * 1f, Palette.Gold, 24, 0.14f, 5f);
+        }
+
+        // ================= Fences & traps =================
+
+        public void UpgradeFence()
+        {
+            if (FenceLevel >= GameData.FenceUpgradeCost.Length) return;
+            if (!Spend(GameData.FenceUpgradeCost[FenceLevel])) return;
+            FenceLevel++;
+            WorldBuilder.ApplyFenceLevel(this);
+            AddXp(15);
+            Notify($"Fences upgraded to {GameData.FenceNames[FenceLevel]}: predators are {GameData.FenceSlow[FenceLevel] * 100f:0}% slower inside your fields.", Palette.UiGreen, 6f);
+            FX.Play(Sfx.RankUp, 0.5f);
+        }
+
+        public void BuyTrap()
+        {
+            if (Traps >= GameData.MaxTraps) { Notify($"You already have {GameData.MaxTraps} traps set.", Palette.UiRed); return; }
+            if (!Spend(GameData.TrapPrice)) return;
+            Traps++;
+            var t = PlaceTrap();
+            FX.Play(Sfx.Coin, 0.5f);
+            FX.Text(t.position + Vector3.up * 1.5f, "Trap set!", Palette.UiGreen);
+            Notify("A trap was set at the edge of your farm.", Palette.UiGreen);
+        }
+
+        Transform PlaceTrap()
+        {
+            Vector3 pos;
+            if (Random.value < 0.3f) pos = WarehouseDoor + new Vector3(Random.Range(-3f, 3f), 0f, Random.Range(1.5f, 3f));
+            else
+            {
+                var owned = Fields.Where(f => f.Owned).ToList();
+                var f = owned[Random.Range(0, owned.Count)];
+                int side = Random.Range(0, 4);
+                float along = Random.Range(-0.8f, 0.8f);
+                float ox = side < 2 ? along * f.HalfX : (side == 2 ? -1f : 1f) * (f.HalfX + 2f);
+                float oz = side < 2 ? (side == 0 ? -1f : 1f) * (f.HalfZ + 2f) : along * f.HalfZ;
+                pos = f.Center + new Vector3(ox, 0f, oz);
+            }
+            var go = new GameObject("Trap");
+            go.transform.position = new Vector3(pos.x, 0f, pos.z);
+            go.AddComponent<Trap>();
+            return go.transform;
+        }
+
+        // ================= Lamp posts =================
+
+        /// <summary>Lamp spots in order: around the Chicken Run, the yard, then around your other fields.</summary>
+        List<Vector3> LampSpots()
+        {
+            var spots = new List<Vector3>();
+            void Corners(FarmField f)
+            {
+                foreach (var cz in new[] { 1f, -1f })
+                foreach (var cx in new[] { -1f, 1f })
+                    spots.Add(f.Center + new Vector3(cx * (f.HalfX + 1.3f), 0f, cz * (f.HalfZ + 1.3f)));
+            }
+            Corners(Fields[0]);
+            spots.Add(new Vector3(-7f, 0f, 11.5f));
+            spots.Add(new Vector3(7f, 0f, 11.5f));
+            foreach (var f in Fields) if (f.Index > 0 && f.Owned) Corners(f);
+            return spots;
+        }
+
+        public void BuyLamp()
+        {
+            if (Lamps >= GameData.MaxLamps) { Notify($"You already have {GameData.MaxLamps} lamp posts.", Palette.UiRed); return; }
+            if (!Spend(GameData.LampPrice)) return;
+            Lamps++;
+            var t = PlaceLamp();
+            FX.Play(Sfx.Coin, 0.5f);
+            if (t) FX.Text(t.position + Vector3.up * 4f, "Lamp post built!", Palette.UiGreen);
+            Notify("A lamp post was built. It lights up at night and keeps predators away.", Palette.UiGreen);
+        }
+
+        Transform PlaceLamp()
+        {
+            foreach (var spot in LampSpots())
+            {
+                if (LampObjects.Any(l => l && FlatDistance(l.transform.position, spot) < 1f)) continue;
+                var go = new GameObject("Lamp Post");
+                go.transform.position = spot;
+                var lamp = go.AddComponent<Lamp>();
+                LampObjects.Add(lamp);
+                return go.transform;
+            }
+            return null;
+        }
+
+        /// <summary>True at night near a lit lamp post (predators avoid these spots).</summary>
+        public bool NearLitLamp(Vector3 pos)
+        {
+            if (!DayNight.IsNight) return false;
+            foreach (var l in LampObjects)
+                if (l && FlatDistance(l.transform.position, pos) <= GameData.LampRadius) return true;
+            return false;
+        }
+
         // ================= Animals =================
 
-        public Animal SpawnAnimal(AnimalKind kind, Stage stage, Vector3 pos, bool rare = false)
+        public Animal SpawnAnimal(AnimalKind kind, Stage stage, Vector3 pos, bool rare = false, int field = -1)
         {
+            if (field < 0 || field >= Fields.Count || !Fields[field].Owned)
+            {
+                var home = FieldFor(kind);
+                field = home != null && home.Owned ? home.Index : 0;
+            }
             var go = new GameObject(GameData.Animals[kind].Name);
             go.transform.position = new Vector3(pos.x, 0f, pos.z);
             go.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
             var a = go.AddComponent<Animal>();
+            a.Field = field;
             a.Init(kind, stage, rare);
             Animals.Add(a);
             return a;
@@ -318,18 +615,21 @@ namespace HayHustle
         {
             var d = GameData.Animals[kind];
             if (Rank < d.UnlockRank) return;
-            if (Animals.Count >= AnimalCapacity) { Notify("Your pasture is full!", Palette.UiRed); return; }
+            var home = FieldFor(kind);
+            if (!home.Owned) { Notify($"Buy the {home.Def.Name} first - {d.Plural} need their own field.", Palette.UiRed); FX.Play(Sfx.Error, 0.4f); return; }
+            if (FieldFull(kind)) { Notify($"The {home.Def.Name} is full ({home.Def.Capacity} {d.Plural}).", Palette.UiRed); FX.Play(Sfx.Error, 0.4f); return; }
             if (!Spend(stage == Stage.Baby ? d.BabyPrice : d.AdultPrice)) return;
-            var bought = SpawnAnimal(kind, stage, RandomPasturePoint());
+            var bought = SpawnAnimal(kind, stage, home.RandomPoint(), false, home.Index);
             AddXp(2);
             FX.Text(bought.transform.position + Vector3.up * 1.5f, "New!", Palette.UiGreen, 1.1f);
             FX.Burst(bought.transform.position + Vector3.up * 0.5f, Palette.UiGreen, 10, 0.08f, 2.5f);
             FX.Play(Sfx.Coin, 0.5f);
-            Notify($"Bought a {(stage == Stage.Baby ? d.BabyName.ToLower() : d.Name.ToLower())}.", Palette.UiGreen);
+            Notify($"Bought a {(stage == Stage.Baby ? d.BabyName.ToLower() : d.Name.ToLower())} ({Fields[bought.Field].Def.Name}).", Palette.UiGreen);
         }
 
         public void SellAnimal(Animal a)
         {
+            if (!a) return;
             int price = GameData.SellPrice(a);
             AddCoins(price);
             Notify($"Sold a {a.DisplayName.ToLower()} for {price} coins.", Palette.UiGold);
@@ -396,13 +696,68 @@ namespace HayHustle
             FX.Play(Sfx.Coin, 0.5f);
         }
 
+        // ================= Workers =================
+
+        public int CountWorkers(WorkerKind k) => Workers.Count(w => w && w.Kind == k);
+        public int TotalWages => Workers.Where(w => w).Sum(w => w.Def.Wage);
+
+        Worker SpawnWorker(WorkerKind kind)
+        {
+            var go = new GameObject(GameData.Workers[kind].Name);
+            go.transform.position = new Vector3(Random.Range(-4f, 4f), 0f, Random.Range(11f, 14f));
+            var w = go.AddComponent<Worker>();
+            w.Init(kind);
+            return w;
+        }
+
+        public void HireWorker(WorkerKind kind)
+        {
+            var d = GameData.Workers[kind];
+            if (Rank < d.UnlockRank) return;
+            if (CountWorkers(kind) >= d.Max) { Notify($"You already have {d.Max} {d.Name}(s).", Palette.UiRed); return; }
+            if (!Spend(d.HireCost)) return;
+            var w = SpawnWorker(kind);
+            AddXp(5);
+            Notify($"You hired a {d.Name}! Wage: {d.Wage} coins per day.", Palette.UiGreen, 5f);
+            FX.Play(Sfx.Coin, 0.5f);
+            FX.Text(w.transform.position + Vector3.up * 2.5f, "Hired!", Palette.UiGreen, 1.2f);
+        }
+
+        public void FireWorker(WorkerKind kind)
+        {
+            var w = Workers.FirstOrDefault(x => x && x.Kind == kind);
+            if (w == null) return;
+            Notify($"Your {w.Def.Name} left the farm.", Palette.UiWhite);
+            Workers.Remove(w);
+            Destroy(w.gameObject);
+        }
+
+        void PayWages()
+        {
+            int paid = 0;
+            foreach (var w in Workers.ToArray())
+            {
+                if (!w) continue;
+                if (Coins >= w.Def.Wage) { Coins -= w.Def.Wage; paid += w.Def.Wage; }
+                else
+                {
+                    Notify($"You couldn't pay your {w.Def.Name} - they quit!", Palette.UiRed, 6f);
+                    Workers.Remove(w);
+                    Destroy(w.gameObject);
+                }
+            }
+            if (paid > 0) Notify($"Paid {paid} coins in worker wages.", Palette.UiWhite, 5f);
+        }
+
         // ================= World queries =================
 
-        public Vector3 RandomPasturePoint() =>
-            new Vector3(Random.Range(PastureMinX + 1f, PastureMaxX - 1f), 0f, Random.Range(PastureMinZ + 1f, PastureMaxZ - 1f));
+        public Vector3 RandomPasturePoint()
+        {
+            var owned = Fields.Where(f => f.Owned).ToList();
+            return owned[Random.Range(0, owned.Count)].RandomPoint();
+        }
 
-        public static Vector3 ClampToPasture(Vector3 p) =>
-            new Vector3(Mathf.Clamp(p.x, PastureMinX, PastureMaxX), 0f, Mathf.Clamp(p.z, PastureMinZ, PastureMaxZ));
+        public static Vector3 ClampToPasture(Vector3 p) => I.Fields[0].Clamp(p);
 
         public static float FlatDistance(Vector3 a, Vector3 b)
         {
@@ -423,13 +778,14 @@ namespace HayHustle
             return best;
         }
 
-        public GrassPatch NearestGrassWithFood(Vector3 pos)
+        public GrassPatch NearestGrassWithFood(Vector3 pos, int field)
         {
+            var list = field >= 0 && field < Fields.Count ? Fields[field].Grass : Grass;
             GrassPatch best = null;
             float bestD = float.MaxValue;
-            foreach (var g in Grass)
+            foreach (var g in list)
             {
-                if (g.Amount <= 0.1f) continue;
+                if (!g || g.Amount <= 0.1f) continue;
                 float d = FlatDistance(g.transform.position, pos);
                 if (d < bestD) { bestD = d; best = g; }
             }
@@ -439,7 +795,7 @@ namespace HayHustle
         public GrassPatch GrassNear(Vector3 pos, float radius)
         {
             foreach (var g in Grass)
-                if (FlatDistance(g.transform.position, pos) <= radius) return g;
+                if (g && FlatDistance(g.transform.position, pos) <= radius) return g;
             return null;
         }
 

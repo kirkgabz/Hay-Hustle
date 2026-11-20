@@ -25,7 +25,7 @@ namespace HayHustle
         public bool CanBeHit => !caught && Def != null && (!Def.Flying || transform.position.y < 3.5f);
 
         const float CruiseHeight = 9f;
-        const float EscapeRadius = 62f;
+        const float EscapeRadius = GameData.EscapeRadius;
 
         State state;
         Animal target, carrying;
@@ -64,6 +64,9 @@ namespace HayHustle
 
             Vector3 pos = transform.position;
             Vector3 flat = new Vector3(pos.x, 0f, pos.z);
+            // Fence upgrades slow predators down inside your fields.
+            float slow = !Def.Flying && gm.FenceLevel > 0 && gm.InOwnedField(flat) ? 1f - GameData.FenceSlow[gm.FenceLevel] : 1f;
+            if (gm.NearLitLamp(flat)) slow *= 0.6f; // predators hate the lamp light
             Vector3 move = Vector3.zero;
             float desiredY = Def.Flying ? CruiseHeight : 0f;
 
@@ -84,14 +87,14 @@ namespace HayHustle
                     {
                         Vector3 d = goal.Value - flat;
                         float dist = d.magnitude;
-                        if (dist > 0.01f) move = d / dist * Mathf.Min(dist, Def.Speed * dt);
+                        if (dist > 0.01f) move = d / dist * Mathf.Min(dist, Def.Speed * slow * dt);
                     }
                 }
             }
 
             if (state == State.Fleeing)
             {
-                move = escapeDir * Def.FleeSpeed * dt;
+                move = escapeDir * Def.FleeSpeed * slow * dt;
                 if (Def.Flying) desiredY = CruiseHeight + 2f;
                 if ((flat - GameManager.PastureCenter).magnitude > EscapeRadius)
                 {
@@ -193,6 +196,7 @@ namespace HayHustle
                 if (Kind == PredatorKind.Hawk && gm.AnyAnimalNear(AnimalKind.Turkey, a.transform.position, 5f, true)) continue;
                 float s = (a.transform.position - from).sqrMagnitude;
                 if (a.Stage == Stage.Baby) s *= 0.4f; // babies are easy prey
+                if (gm.NearLitLamp(a.transform.position)) s *= 4f; // animals near a lit lamp are left alone if possible
                 if (s < bestScore) { bestScore = s; best = a; }
             }
             return best;
@@ -275,6 +279,18 @@ namespace HayHustle
                 DropPrey();
                 GameManager.I.Notify($"The {Def.Name.ToLower()} dropped your animal!", Palette.UiGreen);
             }
+        }
+
+        /// <summary>Stepped on a trap: caught at once (a bear only takes 4 hits).</summary>
+        public void TrapHit()
+        {
+            if (caught) return;
+            if (Kind == PredatorKind.Bear)
+            {
+                for (int i = 0; i < 4 && !caught; i++) Hit(transform.position + transform.forward);
+                return;
+            }
+            Catch();
         }
 
         void Catch()

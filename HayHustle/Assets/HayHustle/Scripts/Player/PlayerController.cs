@@ -3,8 +3,6 @@ using UnityEngine.InputSystem;
 
 namespace HayHustle
 {
-    public enum ActAnim { None, Swing, Fill, Plant, Pickup, Use }
-
     /// <summary>
     /// The farmer.
     /// Mouse: click anything (predator, goods, well, plot, building, ground) and the farmer goes there and does it.
@@ -34,10 +32,10 @@ namespace HayHustle
         }
 
         CharacterController cc;
-        Transform visual, toolPivot, upper, legL, legR, armL, armR;
+        Transform visual;
+        FarmerRig rig;
         Light lantern;
-        float vy, busyUntil, nextSwing, walkPhase, actStart, actDuration, stuckTimer;
-        ActAnim act;
+        float vy, busyUntil, nextSwing, stuckTimer;
 
         TaskType task;
         Vector3 taskPos, lastPos;
@@ -51,12 +49,8 @@ namespace HayHustle
         public void Setup(Transform visualRoot, Light lanternLight)
         {
             visual = visualRoot;
-            toolPivot = FindDeep(visualRoot, "ToolPivot");
-            upper = FindDeep(visualRoot, "Upper");
-            legL = FindDeep(visualRoot, "LegL");
-            legR = FindDeep(visualRoot, "LegR");
-            armL = FindDeep(visualRoot, "ArmL");
-            armR = FindDeep(visualRoot, "ArmR");
+            rig = visualRoot.gameObject.AddComponent<FarmerRig>();
+            rig.RunSpeed = RunSpeed;
             lantern = lanternLight;
         }
 
@@ -68,9 +62,7 @@ namespace HayHustle
 
         public void PlayAnim(ActAnim a, float duration)
         {
-            act = a;
-            actStart = Time.time;
-            actDuration = Mathf.Max(0.05f, duration);
+            if (rig) rig.Play(a, duration);
         }
 
         void Update()
@@ -130,7 +122,7 @@ namespace HayHustle
             if (!blocked && kb != null && kb.eKey.wasPressedThisFrame && Focus != null) Use(Focus);
             if (!blocked && kb != null && (kb.fKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame)) Swing();
 
-            Animate(dt, move.magnitude * speed);
+            if (rig) rig.Tick(move.magnitude * speed, dt);
         }
 
         // ================= Click to act =================
@@ -360,77 +352,6 @@ namespace HayHustle
             if (!hitAny) FX.Play(Sfx.Whoosh, 0.3f);
         }
 
-        // ================= Animation =================
-
-        void Animate(float dt, float speed)
-        {
-            if (!visual) return;
-            bool moving = speed > 0.1f;
-            if (moving) walkPhase += dt * speed * 1.6f;
-            float amount = moving ? Mathf.Clamp01(speed / RunSpeed) * 40f + 12f : 0f;
-            float sin = Mathf.Sin(walkPhase);
-
-            float legLx = sin * amount, legRx = -sin * amount;
-            float armLx = -sin * amount * 0.8f, armRx = sin * amount * 0.8f;
-            float upperX = moving ? 4f + amount * 0.1f : Mathf.Sin(Time.time * 2f) * 1.5f;
-            float bodyY = moving ? Mathf.Abs(sin) * 0.06f : 0f;
-            float toolX = 40f;
-            float k = 1f - Mathf.Exp(-18f * dt);
-
-            float t = (Time.time - actStart) / actDuration;
-            if (act != ActAnim.None && t < 1f)
-            {
-                float w = Mathf.Sin(Mathf.PI * t); // 0 -> 1 -> 0
-                float wiggle = Mathf.Sin(Time.time * 14f);
-                switch (act)
-                {
-                    case ActAnim.Swing:
-                        armRx = t < 0.35f ? Mathf.Lerp(0f, -170f, t / 0.35f) : Mathf.Lerp(-170f, -20f, (t - 0.35f) / 0.65f);
-                        upperX = 12f * w;
-                        toolX = 10f;
-                        k = 1f;
-                        break;
-                    case ActAnim.Fill:
-                        upperX = 25f * w;
-                        armRx = (-75f + wiggle * 20f) * w;
-                        armLx = (-75f - wiggle * 20f) * w;
-                        break;
-                    case ActAnim.Plant:
-                        upperX = 55f * w;
-                        bodyY = -0.25f * w;
-                        armRx = (-45f + wiggle * 15f) * w;
-                        armLx = -35f * w;
-                        legLx = -20f * w;
-                        legRx = 25f * w;
-                        break;
-                    case ActAnim.Pickup:
-                        upperX = 50f * w;
-                        bodyY = -0.15f * w;
-                        armRx = -60f * w;
-                        armLx = -30f * w;
-                        break;
-                    case ActAnim.Use:
-                        upperX = 10f * w;
-                        armRx = (-85f + wiggle * 20f) * w;
-                        break;
-                }
-            }
-            else act = ActAnim.None;
-
-            visual.localPosition = new Vector3(0f, bodyY, 0f);
-            Rot(upper, upperX, k);
-            Rot(legL, legLx, k);
-            Rot(legR, legRx, k);
-            Rot(armL, armLx, k);
-            Rot(armR, armRx, k);
-            Rot(toolPivot, toolX, k);
-        }
-
-        static void Rot(Transform t, float x, float k)
-        {
-            if (t) t.localRotation = Quaternion.Slerp(t.localRotation, Quaternion.Euler(x, 0f, 0f), k);
-        }
-
         void FaceTowards(Vector3 p)
         {
             Vector3 d = p - transform.position;
@@ -441,23 +362,14 @@ namespace HayHustle
         void KeepInBounds()
         {
             Vector3 p = transform.position;
-            Vector2 flat = new Vector2(p.x, p.z);
-            if (flat.magnitude <= 46f) return;
-            flat = flat.normalized * 46f;
+            Vector2 c = new Vector2(GameManager.PastureCenter.x, GameManager.PastureCenter.z);
+            Vector2 flat = new Vector2(p.x, p.z) - c;
+            if (flat.magnitude <= GameData.PlayerRadius) return;
+            flat = c + flat.normalized * GameData.PlayerRadius;
             cc.enabled = false;
             transform.position = new Vector3(flat.x, p.y, flat.y);
             cc.enabled = true;
         }
 
-        static Transform FindDeep(Transform t, string name)
-        {
-            if (t.name == name) return t;
-            foreach (Transform c in t)
-            {
-                var r = FindDeep(c, name);
-                if (r) return r;
-            }
-            return null;
-        }
     }
 }

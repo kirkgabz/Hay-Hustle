@@ -265,6 +265,30 @@ namespace HayHustle
 
         // ---------------- Farmer (player) ----------------
 
+        /// <summary>How a person looks (colours and style).</summary>
+        public class Look
+        {
+            public Color Shirt, Torso, Pants, Boots, Hat, HatBand;
+            public bool Plaid, Overalls, Braid, Cap;
+            public float Brim = 0.62f;
+        }
+
+        public static Look FarmerLook(CharacterChoice c)
+        {
+            bool boy = c == CharacterChoice.Boy;
+            var overalls = new Color(0.25f, 0.4f, 0.72f);
+            return new Look
+            {
+                Shirt = boy ? new Color(0.7f, 0.15f, 0.13f) : new Color(0.95f, 0.95f, 0.92f),
+                Torso = boy ? new Color(0.7f, 0.15f, 0.13f) : overalls,
+                Pants = boy ? Palette.Jeans : overalls,
+                Boots = boy ? new Color(0.35f, 0.22f, 0.12f) : new Color(0.15f, 0.35f, 0.2f),
+                Hat = boy ? Palette.Straw : new Color(0.97f, 0.88f, 0.62f),
+                HatBand = boy ? Palette.DarkWood : new Color(0.9f, 0.4f, 0.5f),
+                Plaid = boy, Overalls = !boy, Braid = !boy, Brim = boy ? 0.62f : 0.82f,
+            };
+        }
+
         public static Transform BuildFarmer(CharacterChoice c, Transform parent)
         {
             bool boy = c == CharacterChoice.Boy;
@@ -274,41 +298,88 @@ namespace HayHustle
                 AddNet(model, new Vector3(0.36f, 1.0f, 0.05f));
                 return model;
             }
+            var root = BuildPerson(FarmerLook(c), parent);
+            AddNet(FindArm(root), new Vector3(0f, -0.6f, 0.05f));
+            return root;
+        }
 
+        public static Transform BuildWorker(WorkerKind kind, Transform parent)
+        {
+            var model = Visuals.TryModel("Worker" + kind, parent);
+            if (model != null) return model;
+            var d = GameData.Workers[kind];
+            var look = new Look
+            {
+                Shirt = d.Shirt, Torso = d.Shirt,
+                Pants = kind == WorkerKind.FactoryHand ? new Color(0.3f, 0.3f, 0.32f) : new Color(0.35f, 0.3f, 0.22f),
+                Boots = new Color(0.25f, 0.18f, 0.1f),
+                Hat = d.Cap, HatBand = d.Cap * 0.7f + Color.black * 0.3f,
+                Cap = kind != WorkerKind.WaterCarrier,
+                Overalls = kind == WorkerKind.FactoryHand,
+            };
+            if (kind == WorkerKind.FactoryHand) look.Torso = new Color(0.55f, 0.35f, 0.18f); // apron
+            var root = BuildPerson(look, parent);
+            var hand = Pivot(FindArm(root), "ToolPivot", 0f, -0.62f, 0.08f);
+            switch (kind)
+            {
+                case WorkerKind.WaterCarrier:
+                    P(Cyl, hand, 0, -0.18f, 0, 0.28f, 0.16f, 0.28f, new Color(0.6f, 0.62f, 0.66f));
+                    P(Cyl, hand, 0, -0.03f, 0, 0.25f, 0.01f, 0.25f, new Color(0.35f, 0.6f, 0.95f));
+                    break;
+                case WorkerKind.Collector:
+                    P(Cube, hand, 0, -0.18f, 0.05f, 0.34f, 0.22f, 0.26f, Palette.Straw);
+                    break;
+                case WorkerKind.FactoryHand:
+                    P(Cube, hand, 0, -0.05f, 0.12f, 0.06f, 0.06f, 0.35f, new Color(0.5f, 0.5f, 0.55f));
+                    break;
+                case WorkerKind.Guard:
+                    P(Cyl, hand, 0, 0, 0.6f, 0.035f, 0.75f, 0.035f, Palette.Wood, 90f);
+                    P(Cube, hand, 0, 0, 1.38f, 0.32f, 0.03f, 0.05f, new Color(0.5f, 0.5f, 0.55f));
+                    foreach (var tx in new[] { -0.14f, 0f, 0.14f })
+                        P(Cube, hand, tx, 0, 1.55f, 0.03f, 0.03f, 0.32f, new Color(0.5f, 0.5f, 0.55f));
+                    break;
+                case WorkerKind.Driver:
+                    P(Cube, hand, 0, -0.08f, 0.05f, 0.2f, 0.14f, 0.04f, new Color(0.9f, 0.85f, 0.6f)); // delivery list
+                    break;
+            }
+            return root;
+        }
+
+        static Transform FindArm(Transform root)
+        {
+            foreach (var t in root.GetComponentsInChildren<Transform>()) if (t.name == "ArmR") return t;
+            return root;
+        }
+
+        /// <summary>A jointed person (legs, waist, arms) that FarmerRig can animate.</summary>
+        public static Transform BuildPerson(Look look, Transform parent)
+        {
             var root = Visuals.NewRoot(parent);
-            Color shirt = boy ? new Color(0.7f, 0.15f, 0.13f) : new Color(0.95f, 0.95f, 0.92f);
-            Color overalls = new Color(0.25f, 0.4f, 0.72f);
-            Color torso = boy ? shirt : overalls;
-            Color pants = boy ? Palette.Jeans : overalls;
-            Color boots = boy ? new Color(0.35f, 0.22f, 0.12f) : new Color(0.15f, 0.35f, 0.2f);
-            Color hat = boy ? Palette.Straw : new Color(0.97f, 0.88f, 0.62f);
 
-            // Legs (pivot at the hip so they can swing)
             foreach (var side in new[] { -1f, 1f })
             {
                 var leg = Pivot(root, side < 0 ? "LegL" : "LegR", 0.12f * side, 0.95f, 0f);
-                P(Cube, leg, 0, -0.37f, 0, 0.19f, 0.75f, 0.2f, pants);
-                P(Cube, leg, 0, -0.83f, 0.03f, 0.2f, 0.24f, 0.3f, boots);
+                P(Cube, leg, 0, -0.37f, 0, 0.19f, 0.75f, 0.2f, look.Pants);
+                P(Cube, leg, 0, -0.83f, 0.03f, 0.2f, 0.24f, 0.3f, look.Boots);
             }
 
-            // Upper body (pivot at the waist so it can bend)
             var upper = Pivot(root, "Upper", 0f, 0.95f, 0f);
-            P(Cube, upper, 0, 0.3f, 0, 0.52f, 0.62f, 0.28f, torso);
-            if (boy)
+            P(Cube, upper, 0, 0.3f, 0, 0.52f, 0.62f, 0.28f, look.Torso);
+            if (look.Plaid)
             {
-                Color plaid = new Color(0.35f, 0.07f, 0.06f);
+                Color plaid = look.Shirt * 0.5f + Color.black * 0.5f;
                 P(Cube, upper, 0, 0.43f, 0.145f, 0.53f, 0.05f, 0.01f, plaid);
                 P(Cube, upper, 0, 0.2f, 0.145f, 0.53f, 0.05f, 0.01f, plaid);
                 P(Cube, upper, 0.1f, 0.3f, 0.145f, 0.05f, 0.62f, 0.01f, plaid);
                 P(Cube, upper, -0.1f, 0.3f, 0.145f, 0.05f, 0.62f, 0.01f, plaid);
-                P(Cube, upper, 0, 0.0f, 0, 0.54f, 0.06f, 0.3f, Palette.DarkWood); // belt
+                P(Cube, upper, 0, 0.0f, 0, 0.54f, 0.06f, 0.3f, Palette.DarkWood);
             }
-            else
+            if (look.Overalls)
             {
-                P(Cube, upper, 0, 0.55f, 0, 0.5f, 0.14f, 0.27f, shirt);
-                P(Cube, upper, 0.15f, 0.55f, 0.142f, 0.07f, 0.16f, 0.01f, overalls);
-                P(Cube, upper, -0.15f, 0.55f, 0.142f, 0.07f, 0.16f, 0.01f, overalls);
-                P(Cube, upper, 0, 0.25f, 0.145f, 0.18f, 0.14f, 0.01f, overalls * 0.85f + Color.black * 0.15f); // bib pocket
+                P(Cube, upper, 0, 0.55f, 0, 0.5f, 0.14f, 0.27f, look.Shirt);
+                P(Cube, upper, 0.15f, 0.55f, 0.142f, 0.07f, 0.16f, 0.01f, look.Torso);
+                P(Cube, upper, -0.15f, 0.55f, 0.142f, 0.07f, 0.16f, 0.01f, look.Torso);
+                P(Cube, upper, 0, 0.25f, 0.145f, 0.18f, 0.14f, 0.01f, look.Torso * 0.85f + Color.black * 0.15f);
             }
             P(Cube, upper, 0, 0.65f, 0, 0.14f, 0.1f, 0.14f, Palette.Skin);
             P(Sphere, upper, 0, 0.85f, 0, 0.36f, 0.4f, 0.36f, Palette.Skin);
@@ -316,23 +387,28 @@ namespace HayHustle
             P(Sphere, upper, 0.07f, 0.87f, 0.165f, 0.05f, 0.05f, 0.03f, Palette.Black);
             P(Sphere, upper, -0.07f, 0.87f, 0.165f, 0.05f, 0.05f, 0.03f, Palette.Black);
             P(Cube, upper, 0, 0.76f, 0.172f, 0.08f, 0.015f, 0.01f, new Color(0.6f, 0.3f, 0.3f));
-            if (!boy)
+            if (look.Braid)
             {
                 P(Cube, upper, 0, 0.6f, -0.2f, 0.1f, 0.42f, 0.1f, Palette.Hair);
                 P(Sphere, upper, 0, 0.38f, -0.2f, 0.08f, 0.08f, 0.08f, new Color(0.9f, 0.4f, 0.5f));
             }
-            float brim = boy ? 0.62f : 0.82f;
-            P(Cyl, upper, 0, 1.05f, 0, brim, 0.015f, brim, hat);
-            P(Cyl, upper, 0, 1.13f, 0, 0.34f, 0.08f, 0.34f, hat);
-            P(Cyl, upper, 0, 1.08f, 0, 0.35f, 0.02f, 0.35f, boy ? Palette.DarkWood : new Color(0.9f, 0.4f, 0.5f));
+            if (look.Cap)
+            {
+                P(Sphere, upper, 0, 1.0f, -0.01f, 0.4f, 0.22f, 0.4f, look.Hat);
+                P(Cube, upper, 0, 0.98f, 0.2f, 0.3f, 0.03f, 0.2f, look.HatBand);
+            }
+            else
+            {
+                P(Cyl, upper, 0, 1.05f, 0, look.Brim, 0.015f, look.Brim, look.Hat);
+                P(Cyl, upper, 0, 1.13f, 0, 0.34f, 0.08f, 0.34f, look.Hat);
+                P(Cyl, upper, 0, 1.08f, 0, 0.35f, 0.02f, 0.35f, look.HatBand);
+            }
 
-            // Arms (pivot at the shoulder)
             foreach (var side in new[] { -1f, 1f })
             {
                 var arm = Pivot(upper, side < 0 ? "ArmL" : "ArmR", 0.34f * side, 0.55f, 0f);
-                P(Cube, arm, 0, -0.25f, 0, 0.15f, 0.58f, 0.17f, shirt);
+                P(Cube, arm, 0, -0.25f, 0, 0.15f, 0.58f, 0.17f, look.Shirt);
                 P(Cube, arm, 0, -0.59f, 0, 0.13f, 0.12f, 0.14f, Palette.Skin);
-                if (side > 0) AddNet(arm, new Vector3(0f, -0.6f, 0.05f));
             }
             return root;
         }
@@ -395,6 +471,44 @@ namespace HayHustle
                     P(Cube, root, 0, 0.15f, 0, 0.3f, 0.3f, 0.3f, Palette.Wood);
                     break;
             }
+            root.localScale = Vector3.one * 1.6f; // a bit bigger than life so it is easy to spot
+            return root;
+        }
+
+        // ---------------- Props ----------------
+
+        public static Transform BuildSign(Transform parent, string label)
+        {
+            var root = Visuals.NewRoot(parent);
+            P(Cube, root, -0.55f, 0.7f, 0, 0.1f, 1.4f, 0.1f, Palette.DarkWood);
+            P(Cube, root, 0.55f, 0.7f, 0, 0.1f, 1.4f, 0.1f, Palette.DarkWood);
+            P(Cube, root, 0, 1.15f, 0.06f, 1.5f, 0.7f, 0.06f, Palette.Wood);
+            P(Cube, root, 0, 1.15f, 0.1f, 1.2f, 0.12f, 0.02f, new Color(0.95f, 0.9f, 0.75f));
+            P(Cube, root, 0, 1.6f, 0.06f, 0.5f, 0.25f, 0.05f, Palette.Red);
+            return root;
+        }
+
+        public static Transform BuildOrderBoard(Transform parent)
+        {
+            var root = Visuals.NewRoot(parent);
+            P(Cube, root, -0.9f, 1.1f, 0, 0.14f, 2.2f, 0.14f, Palette.DarkWood);
+            P(Cube, root, 0.9f, 1.1f, 0, 0.14f, 2.2f, 0.14f, Palette.DarkWood);
+            P(Cube, root, 0, 1.45f, 0, 2.0f, 1.2f, 0.08f, Palette.Wood);
+            P(Cube, root, 0, 2.2f, 0, 2.3f, 0.12f, 0.4f, Palette.Roof);
+            Color[] paper = { new Color(0.97f, 0.95f, 0.85f), new Color(0.95f, 0.9f, 0.7f), new Color(0.98f, 0.97f, 0.92f) };
+            for (int i = 0; i < 3; i++)
+                P(Cube, root, -0.6f + i * 0.6f, 1.45f + (i % 2) * 0.1f, 0.05f, 0.45f, 0.6f, 0.02f, paper[i], 0f, 0f, (i - 1) * 5f);
+            return root;
+        }
+
+        public static Transform BuildTrap(Transform parent)
+        {
+            var root = Visuals.NewRoot(parent);
+            Color metal = new Color(0.4f, 0.4f, 0.42f);
+            P(Cyl, root, 0, 0.03f, 0, 0.8f, 0.03f, 0.8f, new Color(0.3f, 0.3f, 0.32f));
+            P(Cube, root, 0, 0.12f, 0.3f, 0.8f, 0.15f, 0.04f, metal, -30f);
+            P(Cube, root, 0, 0.12f, -0.3f, 0.8f, 0.15f, 0.04f, metal, 30f);
+            P(Cube, root, 0, 0.07f, 0, 0.12f, 0.04f, 0.12f, Palette.Gold);
             return root;
         }
     }

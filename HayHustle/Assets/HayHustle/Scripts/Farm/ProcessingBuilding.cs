@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace HayHustle
 {
-    /// <summary>Bakery / Weaving Mill / Dairy: turns raw goods into valuable goods.</summary>
+    /// <summary>Bakery / Weaving Mill / Dairy / ...: turns raw goods into valuable goods. Used by the player or a Factory Hand.</summary>
     public class ProcessingBuilding : Interactable
     {
         public RecipeDef Recipe { get; private set; }
@@ -17,11 +17,22 @@ namespace HayHustle
             Recipe = r;
             lamp = indicator;
             Range = 4.2f;
+            GameManager.I.Buildings.Add(this);
+        }
+
+        void OnDestroy()
+        {
+            if (GameManager.I) GameManager.I.Buildings.Remove(this);
         }
 
         string Out => GameData.ProductName(Recipe.Output);
         string In => GameData.ProductName(Recipe.Input);
         bool Locked => GameManager.I.Rank < Recipe.UnlockRank;
+
+        public Vector3 FrontPosition => transform.position + transform.forward * 3.2f;
+
+        /// <summary>True when a Factory Hand should come: something to collect, or it is idle and the goods are there.</summary>
+        public bool NeedsWorker => !Locked && (ready > 0 || (!working && GameManager.I.HasProduct(Recipe.Input, Recipe.InputAmount)));
 
         public override string Prompt
         {
@@ -36,8 +47,12 @@ namespace HayHustle
 
         public override bool CanInteract => !Locked && !(working && ready == 0);
 
-        public override void Interact(PlayerController player)
+        public override void Interact(PlayerController player) => Operate(player);
+
+        /// <summary>Collect what is ready, then start the next batch if possible. player is null for workers.</summary>
+        public void Operate(PlayerController player)
         {
+            if (Locked) return;
             var gm = GameManager.I;
             bool collected = false;
             if (ready > 0)
@@ -48,8 +63,8 @@ namespace HayHustle
                 {
                     FX.Text(transform.position + Vector3.up * 4.5f, $"+{got} {Out}", Palette.UiGold, 1.2f);
                     FX.Burst(transform.position + Vector3.up * 2f, Palette.Gold, 10, 0.1f, 3f);
-                    FX.Play(Sfx.Coin);
-                    player.PlayAnim(ActAnim.Use, 0.5f);
+                    FX.Play(Sfx.Coin, player ? 0.5f : 0.25f);
+                    if (player) player.PlayAnim(ActAnim.Use, 0.5f);
                 }
                 if (ready > 0) { gm.Notify("Warehouse is full!", Palette.UiRed); return; }
                 collected = true;
@@ -60,12 +75,12 @@ namespace HayHustle
                 gm.RemoveProduct(Recipe.Input, Recipe.InputAmount);
                 working = true;
                 timer = Recipe.Time;
-                player.PlayAnim(ActAnim.Use, 0.6f);
+                if (player) player.PlayAnim(ActAnim.Use, 0.6f);
                 FX.Text(transform.position + Vector3.up * 4.5f, $"Making {Out}... {Recipe.Time:0}s", Color.white);
                 FX.Burst(transform.position + Vector3.up * 3.5f, new Color(0.8f, 0.8f, 0.8f), 8, 0.15f, 1.5f);
-                FX.Play(Sfx.Plant);
+                if (player) FX.Play(Sfx.Plant);
             }
-            else if (!collected)
+            else if (!collected && player)
             {
                 gm.Notify($"Need {Recipe.InputAmount} {In} in the warehouse.", Palette.UiRed);
                 FX.Text(transform.position + Vector3.up * 4.5f, $"Need {Recipe.InputAmount} {In}", Palette.UiRed);

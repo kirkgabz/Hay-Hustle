@@ -8,6 +8,24 @@ namespace HayHustle
     public enum Product { Egg, Wool, Milk, Cake, Yarn, Butter, GoatMilk, Cheese, Truffle, Feather, Pillow, LlamaWool, Coat }
     public enum PredatorKind { Fox, Hawk, Wolf, Snake, Rat, Bear }
     public enum HelperKind { Cat, Dog }
+    public enum WorkerKind { Collector, WaterCarrier, FactoryHand, Driver, Guard }
+
+    public class WorkerDef
+    {
+        public WorkerKind Kind;
+        public string Name, Job;
+        public int HireCost, Wage, UnlockRank, Max;
+        public Color Shirt, Cap;
+    }
+
+    public class FieldDef
+    {
+        public int Index;
+        public string Name;
+        public Vector3 Center;
+        public AnimalKind Kind;   // each field is home to one kind of animal
+        public int Cols, Rows, Price, UnlockRank, Capacity;
+    }
     public enum Stage { Baby, Adult, Prime }
     public enum CharacterChoice { Boy, Girl }
 
@@ -193,6 +211,47 @@ namespace HayHustle
                 Description = "Patrols the pasture. Chases and bites foxes, wolves and bears.",
                 Speed = 6.5f, HitInterval = 0.8f, Hunts = new[] { PredatorKind.Fox, PredatorKind.Wolf, PredatorKind.Bear } },
         };
+
+        public static readonly Dictionary<WorkerKind, WorkerDef> Workers = new Dictionary<WorkerKind, WorkerDef>
+        {
+            [WorkerKind.Collector] = new WorkerDef { Kind = WorkerKind.Collector, Name = "Collector", HireCost = 400, Wage = 40, UnlockRank = 2, Max = 2,
+                Job = "Picks up eggs, wool, milk and other goods before they spoil.", Shirt = new Color(0.25f, 0.55f, 0.3f), Cap = new Color(0.2f, 0.45f, 0.25f) },
+            [WorkerKind.WaterCarrier] = new WorkerDef { Kind = WorkerKind.WaterCarrier, Name = "Water Carrier", HireCost = 500, Wage = 50, UnlockRank = 3, Max = 1,
+                Job = "Fetches water from the well and replants empty grass plots in all your fields.", Shirt = new Color(0.25f, 0.45f, 0.8f), Cap = new Color(0.86f, 0.72f, 0.38f) },
+            [WorkerKind.FactoryHand] = new WorkerDef { Kind = WorkerKind.FactoryHand, Name = "Factory Hand", HireCost = 800, Wage = 80, UnlockRank = 5, Max = 1,
+                Job = "Runs your buildings: starts products and collects them when they are ready.", Shirt = new Color(0.92f, 0.92f, 0.9f), Cap = new Color(0.5f, 0.3f, 0.15f) },
+            [WorkerKind.Driver] = new WorkerDef { Kind = WorkerKind.Driver, Name = "Driver", HireCost = 600, Wage = 60, UnlockRank = 6, Max = 1,
+                Job = "Loads the truck (WANTED goods first) and sends it to town. Keeps enough raw goods for your buildings.", Shirt = new Color(0.45f, 0.45f, 0.5f), Cap = new Color(0.12f, 0.12f, 0.14f) },
+            [WorkerKind.Guard] = new WorkerDef { Kind = WorkerKind.Guard, Name = "Guard", HireCost = 1200, Wage = 100, UnlockRank = 4, Max = 2,
+                Job = "Patrols your fields with a pitchfork. Runs after any predator (fox, hawk, wolf, snake, rat, bear) and fights it until it is caught.", Shirt = new Color(0.55f, 0.15f, 0.12f), Cap = new Color(0.15f, 0.2f, 0.12f) },
+        };
+
+        /// <summary>One field per kind of animal. The Chicken Run is yours from the start; buy the others to keep those animals.</summary>
+        public static readonly List<FieldDef> Fields = new List<FieldDef>
+        {
+            new FieldDef { Index = 0, Name = "Chicken Run", Kind = AnimalKind.Chicken, Center = new Vector3(0f, 0f, -7.25f), Cols = 9, Rows = 8, Price = 0, UnlockRank = 1, Capacity = 30 },
+            new FieldDef { Index = 1, Name = "Sheep Meadow", Kind = AnimalKind.Sheep, Center = new Vector3(0f, 0f, -30f), Cols = 7, Rows = 6, Price = 1000, UnlockRank = 3, Capacity = 12 },
+            new FieldDef { Index = 2, Name = "Cow Pasture", Kind = AnimalKind.Cow, Center = new Vector3(-26f, 0f, -30f), Cols = 7, Rows = 6, Price = 2500, UnlockRank = 5, Capacity = 12 },
+            new FieldDef { Index = 3, Name = "Goat Hill", Kind = AnimalKind.Goat, Center = new Vector3(26f, 0f, -30f), Cols = 7, Rows = 6, Price = 3500, UnlockRank = 7, Capacity = 12 },
+            new FieldDef { Index = 4, Name = "Pig Pen", Kind = AnimalKind.Pig, Center = new Vector3(-38f, 0f, -8f), Cols = 7, Rows = 6, Price = 5000, UnlockRank = 9, Capacity = 12 },
+            new FieldDef { Index = 5, Name = "Turkey Yard", Kind = AnimalKind.Turkey, Center = new Vector3(38f, 0f, -8f), Cols = 7, Rows = 6, Price = 6500, UnlockRank = 11, Capacity = 12 },
+            new FieldDef { Index = 6, Name = "Llama Ridge", Kind = AnimalKind.Llama, Center = new Vector3(0f, 0f, -52f), Cols = 7, Rows = 6, Price = 9000, UnlockRank = 14, Capacity = 12 },
+        };
+
+        /// <summary>The forest ring around the farm (predators come from here).</summary>
+        public const float ForestInner = 63f, ForestOuter = 84f, SpawnRadius = 66f, EscapeRadius = 80f, PlayerRadius = 60f;
+
+        public const int LampPrice = 250;
+        public const int MaxLamps = 10;
+        public const float LampRadius = 9f;
+
+        // Fence upgrades slow predators inside your fields. Index = fence level.
+        public static readonly int[] FenceUpgradeCost = { 1200, 3000 };
+        public static readonly float[] FenceSlow = { 0f, 0.3f, 0.5f };
+        public static readonly string[] FenceNames = { "Wooden Fence", "Sturdy Fence", "Iron Fence" };
+        public const int TrapPrice = 150;
+        public const int MaxTraps = 4;
+        public const float QuickSellRate = 0.7f;
 
         public static int XpToReach(int rank) => 40 * (rank - 1) * (rank - 1);
 

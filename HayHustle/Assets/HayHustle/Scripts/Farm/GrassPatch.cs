@@ -6,6 +6,7 @@ namespace HayHustle
     public class GrassPatch : Interactable
     {
         public float Amount { get; private set; }
+        public int Field;
 
         static int seedCounter;
         Transform grass;
@@ -15,12 +16,12 @@ namespace HayHustle
         public void Init()
         {
             Range = 1.6f;
-            Visuals.Prim(PrimitiveType.Cube, transform, new Vector3(0f, 0.02f, 0f), new Vector3(2.3f, 0.04f, 2.3f), Palette.Soil);
+            Visuals.Skin(Visuals.Prim(PrimitiveType.Cube, transform, new Vector3(0f, 0.02f, 0f), new Vector3(2.3f, 0.04f, 2.3f), Palette.Soil), Palette.Soil, Surface.Soil, Vector2.one);
 
             // Grass = a low carpet plus tufts of blades. The whole group grows/shrinks with Amount.
             grass = new GameObject("Grass").transform;
             grass.SetParent(transform, false);
-            Visuals.Prim(PrimitiveType.Cube, grass, new Vector3(0f, 0.06f, 0f), new Vector3(2.05f, 0.12f, 2.05f), Palette.GrassLush);
+            Visuals.Skin(Visuals.Prim(PrimitiveType.Cube, grass, new Vector3(0f, 0.06f, 0f), new Vector3(2.05f, 0.12f, 2.05f), Palette.GrassLush), Palette.GrassLush, Surface.Grass, Vector2.one);
             var rng = new System.Random(1000 + seedCounter++);
             for (int i = 0; i < 10; i++)
             {
@@ -55,6 +56,15 @@ namespace HayHustle
             FX.Text(transform.position + Vector3.up * 1.3f, $"Grass planted  (water {gm.Water}/{gm.WaterMax})", new Color(0.6f, 0.95f, 0.5f), 0.85f);
             FX.Burst(transform.position + Vector3.up * 0.3f, Palette.GrassLush, 12, 0.1f, 2.5f);
             FX.Play(Sfx.Plant);
+            Tutorial.Event("plant");
+        }
+
+        /// <summary>Planted by the Water Carrier (uses the worker's own bucket).</summary>
+        public void PlantByWorker()
+        {
+            float bonus = GameManager.I.AnyAnimalNear(AnimalKind.Chicken, transform.position, 5f) ? 0.25f : 0f;
+            SetAmount(1f + bonus);
+            FX.Burst(transform.position + Vector3.up * 0.3f, Palette.GrassLush, 8, 0.08f, 2f);
         }
 
         public void SetAmount(float a)

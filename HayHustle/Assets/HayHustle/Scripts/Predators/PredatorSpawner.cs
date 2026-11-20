@@ -34,6 +34,7 @@ namespace HayHustle
             var gm = GameManager.I;
             if (gm == null || gm.Mode != GameMode.Playing) return;
 
+            if (Tutorial.HoldsPredators) return; // no attacks while learning the basics
             nextWave -= Time.deltaTime;
             if (nextWave <= 0f)
             {
@@ -105,7 +106,7 @@ namespace HayHustle
             {
                 float ang = (baseAngle + Random.Range(-40f, 40f)) * Mathf.Deg2Rad; // a wave comes from roughly one side
                 Vector3 dir = new Vector3(Mathf.Sin(ang), 0f, Mathf.Cos(ang));
-                Warnings.Add(new Warning { Kind = kind, Position = GameManager.PastureCenter + dir * 50f, SpawnAt = Time.time + t });
+                Warnings.Add(new Warning { Kind = kind, Position = GameManager.PastureCenter + dir * GameData.SpawnRadius, SpawnAt = Time.time + t });
                 t += kind == PredatorKind.Rat ? 0.4f : 1.5f;
             }
 

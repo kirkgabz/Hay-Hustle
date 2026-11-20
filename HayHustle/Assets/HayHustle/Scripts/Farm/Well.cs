@@ -28,6 +28,7 @@ namespace HayHustle
             FX.Text(transform.position + Vector3.up * 2.8f, $"+{added} water  (bucket {gm.Water}/{gm.WaterMax})", new Color(0.5f, 0.8f, 1f), 1.1f);
             FX.Burst(transform.position + Vector3.up * 1f, new Color(0.35f, 0.6f, 0.95f), 14, 0.09f, 2.5f);
             FX.Play(Sfx.Water, 0.7f);
+            Tutorial.Event("well");
         }
     }
 }

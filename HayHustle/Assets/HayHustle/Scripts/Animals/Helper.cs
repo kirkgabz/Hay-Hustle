@@ -74,7 +74,7 @@ namespace HayHustle
                 Vector3 dir = d / dist;
                 Vector3 next = pos + dir * Mathf.Min(dist, speed * dt);
                 Vector2 flat = new Vector2(next.x, next.z);
-                if (flat.magnitude > 50f) flat = flat.normalized * 50f;
+                if (flat.magnitude > GameData.PlayerRadius) flat = flat.normalized * GameData.PlayerRadius;
                 transform.position = new Vector3(flat.x, 0f, flat.y);
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), 10f * dt);
                 phase += dt * speed * 3f;

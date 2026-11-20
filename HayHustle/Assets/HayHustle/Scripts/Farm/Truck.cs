@@ -72,6 +72,49 @@ namespace HayHustle
             GameManager.I.Notify($"The truck left with {items} goods worth {PendingPayment} coins.", Palette.UiGold);
             FX.Text(body.position + Vector3.up * 3f, $"Delivering {items} goods... +{PendingPayment} coins soon", Palette.UiGold);
             FX.Play(Sfx.Coin, 0.4f);
+            Tutorial.Event("truck");
+        }
+
+        /// <summary>How many of this product the Driver keeps for your buildings/nest instead of selling.</summary>
+        static int Reserve(GameManager gm, Product p)
+        {
+            if (p == Product.Egg) return 6; // nest + bakery
+            foreach (var r in GameData.Recipes)
+                if (r.Input == p && gm.Rank >= r.UnlockRank) return 6;
+            return 0;
+        }
+
+        public int DriverSellableCount()
+        {
+            var gm = GameManager.I;
+            int n = 0;
+            for (int i = 0; i < gm.Inventory.Length; i++) n += Mathf.Max(0, gm.Inventory[i] - Reserve(gm, (Product)i));
+            return n;
+        }
+
+        /// <summary>Driver: loads WANTED goods first, then the most valuable, and sends the truck. Returns items loaded.</summary>
+        public int DriverLoadAndSend()
+        {
+            if (Away) return 0;
+            var gm = GameManager.I;
+            var order = new System.Collections.Generic.List<Product>();
+            order.Add(gm.WantedProduct);
+            var byPrice = new System.Collections.Generic.List<ProductDef>(GameData.Products.Values);
+            byPrice.Sort((a, b) => b.Price.CompareTo(a.Price));
+            foreach (var d in byPrice) if (d.Product != gm.WantedProduct) order.Add(d.Product);
+
+            int loaded = 0;
+            foreach (var p in order)
+            {
+                int spare = gm.Inventory[(int)p] - Reserve(gm, p);
+                int n = Mathf.Min(spare, Capacity - CargoCount);
+                if (n <= 0) continue;
+                gm.RemoveProduct(p, n);
+                Cargo[(int)p] += n;
+                loaded += n;
+            }
+            if (CargoCount > 0) Send();
+            return loaded;
         }
 
         public void ResetTruck()

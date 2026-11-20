@@ -79,6 +79,19 @@ Built with **Unity 6 (URP)** and **C#**. PC first, Android later. Backend: **Sup
 - Helpers: Cat (rank 6, hunts rats and snakes near the warehouse), Guard Dog (rank 8, hunts foxes/wolves/bears)
 - New buildings: Cheese Maker, Pillow Factory, Tailor
 
+### Batch 3
+
+- Sharp, bigger UI text (drawn at real screen resolution), new button style, bottom-right menu buttons
+- 3D character select: the real boy/girl farmers on a stage, the chosen one waves
+- "Are you sure?" confirm popups for buying, selling, hiring, upgrading, quitting (can be turned off)
+- Workers: Collector, Water Carrier, Factory Hand, Driver (hire fee + daily wage)
+- Buy more fields (South Field, West Meadow, East Meadow) - more grass and animal space
+- Quick Sell from the warehouse (instant, 70% price)
+- Order Board with villager orders for bonus coins
+- Fence upgrades (predators slower) and traps
+- Hunger icons above hungry animals; bigger goods with a glowing ring
+- Guided tutorial with Skip; pause menu with volume, Low/High graphics, replay tutorial, save & quit
+
 ## Not built yet (next steps)
 
 - Real realistic models and animations (drop prefabs in `Resources/Models`; also `Cat`, `Dog`, `Snake`, `Rat`, `Bear`, `Goat`, `Pig`, `Turkey`, `Llama`)

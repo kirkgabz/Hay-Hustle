@@ -11,18 +11,29 @@ namespace HayHustle
         public float age, hunger, wellFed;
         public bool rare;
         public float x, z;
+        public int field;
+    }
+
+    [System.Serializable]
+    public class FieldSave
+    {
+        public int index;
+        public bool owned;
+        public float[] grass;
     }
 
     [System.Serializable]
     public class SaveData
     {
-        public int version = 1;
+        public int version = 2;
         public string farmName;
         public int character;
         public int coins, water, waterMax, xp, warehouseCapacity;
         public int[] inventory;
-        public float[] grass;
+        public float[] grass;   // version 1 only (home pasture)
+        public List<FieldSave> fields = new List<FieldSave>();
         public List<AnimalSave> animals = new List<AnimalSave>();
+        public List<int> workers = new List<int>();
         public float timeOfDay;
         public int day;
         public int predatorsCaught, animalsLost;
@@ -31,6 +42,8 @@ namespace HayHustle
         public int wanted;
         public int mess;
         public int cats, dogs;
+        public int fenceLevel, traps, lamps;
+        public bool tutorialDone;
     }
 
     /// <summary>
