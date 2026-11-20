@@ -474,11 +474,11 @@ namespace HayHustle
             // feeding trough
             Visuals.Prim(Cube, root, new Vector3(8f, 0.35f, 2.2f), new Vector3(2.4f, 0.5f, 0.7f), Palette.Wood);
             // scarecrow
-            Visuals.Prim(Cube, root, new Vector3(-9f, 1.1f, -9f), new Vector3(0.12f, 2.2f, 0.12f), Palette.DarkWood);
-            Visuals.Prim(Cube, root, new Vector3(-9f, 1.6f, -9f), new Vector3(1.6f, 0.12f, 0.12f), Palette.DarkWood);
-            Visuals.Prim(Cube, root, new Vector3(-9f, 1.45f, -9f), new Vector3(0.5f, 0.6f, 0.3f), new Color(0.3f, 0.45f, 0.65f));
-            Visuals.Prim(Sphere, root, new Vector3(-9f, 2.05f, -9f), Vector3.one * 0.35f, Palette.Straw);
-            Visuals.Prim(Cyl, root, new Vector3(-9f, 2.22f, -9f), new Vector3(0.6f, 0.02f, 0.6f), Palette.Straw);
+            Visuals.Prim(Cube, root, new Vector3(0f, 1.1f, -11f), new Vector3(0.12f, 2.2f, 0.12f), Palette.DarkWood);
+            Visuals.Prim(Cube, root, new Vector3(0f, 1.6f, -11f), new Vector3(1.6f, 0.12f, 0.12f), Palette.DarkWood);
+            Visuals.Prim(Cube, root, new Vector3(0f, 1.45f, -11f), new Vector3(0.5f, 0.6f, 0.3f), new Color(0.3f, 0.45f, 0.65f));
+            Visuals.Prim(Sphere, root, new Vector3(0f, 2.05f, -11f), Vector3.one * 0.35f, Palette.Straw);
+            Visuals.Prim(Cyl, root, new Vector3(0f, 2.22f, -11f), new Vector3(0.6f, 0.02f, 0.6f), Palette.Straw);
         }
 
         static void BuildForest(Transform world)

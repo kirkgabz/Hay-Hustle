@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace HayHustle
@@ -12,6 +13,32 @@ namespace HayHustle
         public WorkerKind Kind { get; private set; }
         public WorkerDef Def { get; private set; }
         public string Status { get; private set; } = "Starting work";
+
+        /// <summary>-1 = visit all fields in turn (rotation); otherwise the index of the one field this worker looks after.</summary>
+        public int AssignedField = -1;
+        int rotation;
+
+        public bool UsesField => Kind == WorkerKind.Collector || Kind == WorkerKind.WaterCarrier || Kind == WorkerKind.Guard;
+        public string AreaName => Area(GameManager.I) is FarmField f ? f.Def.Name : "All fields (rotation)";
+
+        FarmField Area(GameManager gm) =>
+            AssignedField >= 0 && AssignedField < gm.Fields.Count && gm.Fields[AssignedField].Owned ? gm.Fields[AssignedField] : null;
+
+        FarmField RotationField(GameManager gm)
+        {
+            var owned = gm.Fields.Where(f => f.Owned).ToList();
+            rotation = ((rotation % owned.Count) + owned.Count) % owned.Count;
+            return owned[rotation];
+        }
+
+        /// <summary>The field to work in right now: the assigned one, or the current one in the rotation.</summary>
+        FarmField WorkField(GameManager gm) => Area(gm) ?? RotationField(gm);
+
+        bool InArea(GameManager gm, Vector3 p)
+        {
+            var a = Area(gm);
+            return a == null || a.Contains(p, 2.5f);
+        }
 
         const float Speed = 3.8f;
         static readonly HashSet<Object> claimed = new HashSet<Object>();
@@ -166,12 +193,15 @@ namespace HayHustle
             }
             else
             {
-                Status = "Patrolling";
                 if (!hasPatrol || GameManager.FlatDistance(pos, patrolPoint) < 0.5f)
                 {
-                    patrolPoint = gm.RandomPasturePoint();
+                    if (hasPatrol && Area(gm) == null) rotation++; // next field in the rotation
+                    var field = WorkField(gm);
+                    patrolPoint = field.RandomPoint();
                     hasPatrol = true;
+                    Status = "Patrolling the " + field.Def.Name;
                 }
+                else Status = "Patrolling the " + WorkField(gm).Def.Name;
                 Vector3 d = patrolPoint - pos;
                 d.y = 0f;
                 float dist = d.magnitude;
@@ -194,10 +224,13 @@ namespace HayHustle
         {
             Predator best = null;
             float bd = 45f;
+            var area = Area(gm);
             foreach (var p in gm.Predators)
             {
                 if (!p || p.Def == null) continue;
                 float d = GameManager.FlatDistance(p.transform.position, transform.position);
+                // A guard assigned to one field defends that field (and anything that comes very close).
+                if (area != null && !area.Contains(p.transform.position, 15f) && d > 12f) continue;
                 if (d < bd) { bd = d; best = p; }
             }
             return best;
@@ -228,11 +261,11 @@ namespace HayHustle
             float bd = float.MaxValue;
             foreach (var pk in ProductPickup.All)
             {
-                if (!pk || claimed.Contains(pk)) continue;
+                if (!pk || claimed.Contains(pk) || !InArea(gm, pk.transform.position)) continue;
                 float d = GameManager.FlatDistance(pk.transform.position, transform.position);
                 if (d < bd) { bd = d; best = pk; }
             }
-            if (best == null) { Idle(gm.WarehouseDoor); return; }
+            if (best == null) { Idle(Area(gm) != null ? Area(gm).Gate : gm.WarehouseDoor); return; }
             var target = best;
             GoTo(target.transform.position, "Collecting " + GameData.ProductName(target.Product), () =>
             {
@@ -260,13 +293,12 @@ namespace HayHustle
                 });
                 return;
             }
-            GrassPatch best = null;
-            float bd = float.MaxValue;
-            foreach (var g in gm.Grass)
+            var field = WorkField(gm);
+            GrassPatch best = NearestEmptyPlot(field.Grass);
+            if (best == null && Area(gm) == null)
             {
-                if (!g || !g.Selectable || claimed.Contains(g)) continue;
-                float d = GameManager.FlatDistance(g.transform.position, transform.position);
-                if (d < bd) { bd = d; best = g; }
+                rotation++; // this field is done - move on to the next one
+                best = NearestEmptyPlot(gm.Grass);
             }
             if (best == null) { Idle(gm.WellPosition + new Vector3(2.5f, 0f, -1f)); return; }
             var plot = best;
@@ -277,6 +309,19 @@ namespace HayHustle
                 bucket--;
                 Act(ActAnim.Plant, 0.6f);
             }, plot);
+        }
+
+        GrassPatch NearestEmptyPlot(List<GrassPatch> plots)
+        {
+            GrassPatch best = null;
+            float bd = float.MaxValue;
+            foreach (var g in plots)
+            {
+                if (!g || !g.Selectable || claimed.Contains(g)) continue;
+                float d = GameManager.FlatDistance(g.transform.position, transform.position);
+                if (d < bd) { bd = d; best = g; }
+            }
+            return best;
         }
 
         void ThinkFactory(GameManager gm)

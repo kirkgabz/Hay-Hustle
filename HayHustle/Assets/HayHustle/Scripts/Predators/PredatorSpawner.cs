@@ -53,7 +53,8 @@ namespace HayHustle
         float NextInterval(GameManager gm)
         {
             float t = (gm.Rank - 1) / (float)(GameData.MaxRank - 1);
-            float interval = Mathf.Lerp(70f, 28f, t);
+            float interval = Mathf.Lerp(85f, 40f, t);
+            if (gm.CountWorkers(WorkerKind.Guard) == 0) interval *= 1.3f; // gentle until you have a guard
             interval *= Mathf.Lerp(1.15f, 0.8f, Mathf.Clamp01(gm.Animals.Count / 25f)); // bigger farm attracts more
             if (gm.DayNight.IsNight) interval *= 0.6f;
             return interval * Random.Range(0.8f, 1.2f);
@@ -69,6 +70,7 @@ namespace HayHustle
         void ScheduleWave(GameManager gm)
         {
             bool night = gm.DayNight.IsNight;
+            bool guarded = gm.CountWorkers(WorkerKind.Guard) > 0;
             var plan = new List<PredatorKind>();
 
             // Normal hunters.
@@ -77,15 +79,16 @@ namespace HayHustle
             {
                 if (d.Kind == PredatorKind.Rat || d.Kind == PredatorKind.Bear) continue; // special waves below
                 if (gm.Rank < d.MinRank || (d.NightOnly && !night)) continue;
+                if (!guarded && d.Kind != PredatorKind.Fox) continue; // only foxes until you hire a guard
                 if (HasPrey(gm, d)) options.Add(d);
             }
-            int count = Mathf.Min(4, 1 + (gm.Rank - 1) / 5 + (night ? 1 : 0));
+            int count = guarded ? Mathf.Min(2, 1 + (gm.Rank - 1) / 6 + (night ? 1 : 0)) : 1;
             for (int i = 0; i < count && options.Count > 0; i++)
                 plan.Add(options[Random.Range(0, options.Count)].Kind);
 
             // Rat swarm: comes for the warehouse. Spoiled food left around attracts them.
             var rat = GameData.Predators[PredatorKind.Rat];
-            if (gm.Rank >= rat.MinRank && gm.InventoryTotal > 0 && (gm.Mess > 0 || Random.value < 0.3f))
+            if (guarded && gm.Rank >= rat.MinRank && gm.InventoryTotal > 0 && (gm.Mess > 0 || Random.value < 0.3f))
             {
                 int rats = Random.Range(3, 6);
                 for (int i = 0; i < rats; i++) plan.Add(PredatorKind.Rat);
@@ -94,7 +97,7 @@ namespace HayHustle
 
             // Bear: rare night boss.
             var bear = GameData.Predators[PredatorKind.Bear];
-            bool bearComing = gm.Rank >= bear.MinRank && night && HasPrey(gm, bear) && Random.value < 0.3f;
+            bool bearComing = guarded && gm.Rank >= bear.MinRank && night && HasPrey(gm, bear) && Random.value < 0.3f;
             if (bearComing) plan.Add(PredatorKind.Bear);
 
             if (plan.Count == 0) return;

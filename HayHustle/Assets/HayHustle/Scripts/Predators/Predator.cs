@@ -16,6 +16,8 @@ namespace HayHustle
         public PredatorKind Kind { get; private set; }
         public PredatorDef Def { get; private set; }
         public int HitsLeft { get; private set; }
+        public int MaxHits { get; private set; }
+        bool weak;   // predators are weaker when you have guards
         public bool Hidden { get; private set; }
         public bool IsCarrying => carrying != null || stolen.HasValue;
         /// <summary>Height of the health bar above the predator.</summary>
@@ -42,7 +44,9 @@ namespace HayHustle
         {
             Kind = kind;
             Def = GameData.Predators[kind];
-            HitsLeft = Def.Hits;
+            weak = GameManager.I.CountWorkers(WorkerKind.Guard) > 0;
+            MaxHits = weak ? Mathf.Max(1, Mathf.CeilToInt(Def.Hits * 0.5f)) : Def.Hits;
+            HitsLeft = MaxHits;
             visual = Models.BuildPredator(kind, transform);
             wingL = visual.Find("WingL");
             wingR = visual.Find("WingR");
@@ -67,6 +71,7 @@ namespace HayHustle
             // Fence upgrades slow predators down inside your fields.
             float slow = !Def.Flying && gm.FenceLevel > 0 && gm.InOwnedField(flat) ? 1f - GameData.FenceSlow[gm.FenceLevel] : 1f;
             if (gm.NearLitLamp(flat)) slow *= 0.6f; // predators hate the lamp light
+            if (weak) slow *= 0.85f;
             Vector3 move = Vector3.zero;
             float desiredY = Def.Flying ? CruiseHeight : 0f;
 

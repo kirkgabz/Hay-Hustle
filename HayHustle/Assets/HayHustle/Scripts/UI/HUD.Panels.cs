@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace HayHustle
@@ -9,7 +10,7 @@ namespace HayHustle
         int shopTab, manualTab;
         Vector2 sellScroll, buyScroll, truckScroll, manualScroll, workerScroll, farmScroll, whScroll;
 
-        static readonly string[] ShopTabs = { "Animals", "Helpers", "Workers", "Farm", "Sell animals" };
+        static readonly string[] ShopTabs = { "Animals", "Helpers", "Workers", "Farm", "Lights", "Sell animals" };
 
         Rect Window(float w, float h, string heading)
         {
@@ -40,6 +41,7 @@ namespace HayHustle
                 case 1: DrawHelpers(gm, area); break;
                 case 2: DrawWorkers(gm, area); break;
                 case 3: DrawFarm(gm, area); break;
+                case 4: DrawLights(gm, area); break;
                 default: DrawSell(gm, area); break;
             }
         }
@@ -112,10 +114,12 @@ namespace HayHustle
 
         void DrawWorkers(GameManager gm, Rect area)
         {
-            Lbl(new Rect(area.x, area.y, area.width, 26), $"Workers do jobs for you. Wages are paid every morning: <color=#{Hex(Palette.UiGold)}>{gm.TotalWages} coins/day</color> now. If you can't pay, they quit.", small);
+            Lbl(new Rect(area.x, area.y, area.width, 26), $"Wages are paid every morning: <color=#{Hex(Palette.UiGold)}>{gm.TotalWages} coins/day</color>. Click a worker's field button to choose where they work.", small);
             Rect list = new Rect(area.x, area.y + 32, area.width, area.height - 32);
             const float step = 132f;
-            workerScroll = BeginScroll(list, workerScroll, GameData.Workers.Count * step);
+            float contentH = 0f;
+            foreach (var wd in GameData.Workers.Values) contentH += step + (IsFieldJob(wd.Kind) ? gm.CountWorkers(wd.Kind) * 46f : 0f);
+            workerScroll = BeginScroll(list, workerScroll, contentH);
             float y = 0, w = list.width - 26;
             foreach (var d in GameData.Workers.Values)
             {
@@ -137,13 +141,40 @@ namespace HayHustle
                     GUI.enabled = confirm == null;
                 }
                 y += step;
+
+                // Each hired worker: which field they look after
+                if (!IsFieldJob(d.Kind)) continue;
+                int n = 0;
+                foreach (var worker in gm.Workers.Where(x => x && x.Kind == def.Kind).ToList())
+                {
+                    n++;
+                    Row(new Rect(40, y - 6, w - 40, 40));
+                    Lbl(new Rect(56, y - 6, 300, 40), $"{def.Name} #{n}  -  <color=#AAAAAA>{worker.Status}</color>", small);
+                    if (Btn(new Rect(w - 300, y - 2, 284, 32), "Works in: " + worker.AreaName))
+                    {
+                        worker.AssignedField = NextField(gm, worker.AssignedField);
+                        FX.Play(Sfx.Click, 0.25f);
+                    }
+                    y += 46;
+                }
             }
             GUI.EndScrollView();
         }
 
+        static bool IsFieldJob(WorkerKind k) => k == WorkerKind.Collector || k == WorkerKind.WaterCarrier || k == WorkerKind.Guard;
+
+        /// <summary>Cycle: All fields (rotation) -> each owned field -> back to all.</summary>
+        static int NextField(GameManager gm, int current)
+        {
+            var owned = gm.Fields.Where(f => f.Owned).Select(f => f.Index).ToList();
+            int i = owned.IndexOf(current);
+            if (current < 0) return owned.Count > 0 ? owned[0] : -1;
+            return i >= 0 && i + 1 < owned.Count ? owned[i + 1] : -1;
+        }
+
         void DrawFarm(GameManager gm, Rect area)
         {
-            float contentH = gm.Fields.Count * 92f + 430f;
+            float contentH = gm.Fields.Count * 92f + 300f;
             farmScroll = BeginScroll(area, farmScroll, contentH);
             float y = 0, w = area.width - 26;
 
@@ -189,16 +220,26 @@ namespace HayHustle
             Lbl(new Rect(16, y + 42, 600, 30), "<color=#AAAAAA>Placed at the edge of your fields. Catches a fox, wolf, snake or rat (bears get hurt). Used once.</color>", small);
             if (gm.Traps < GameData.MaxTraps && Btn(new Rect(w - 300, y + 18, 284, 48), $"Buy trap - {GameData.TrapPrice} coins"))
                 Confirm("Buy a trap?", $"Pay {GameData.TrapPrice} coins. It is set automatically at the edge of your farm.", "Buy", gm.BuyTrap);
-            y += 96;
-
-            Lbl(new Rect(0, y, w, 30), "<b>Lamp posts</b>", label);
-            y += 34;
-            Row(new Rect(0, y, w, 84));
-            Lbl(new Rect(16, y + 6, 600, 30), $"Lamp posts: {gm.Lamps}/{GameData.MaxLamps}", label);
-            Lbl(new Rect(16, y + 42, w - 340, 30), "<color=#AAAAAA>Light up at night. Predators move slower near them and leave lit animals alone.</color>", small);
-            if (gm.Lamps < GameData.MaxLamps && Btn(new Rect(w - 300, y + 18, 284, 48), $"Build lamp - {GameData.LampPrice} coins"))
-                Confirm("Build a lamp post?", $"Pay {GameData.LampPrice} coins. It is placed around your fields and yard and turns on by itself at night.", "Build", gm.BuyLamp);
             GUI.EndScrollView();
+        }
+
+        void DrawLights(GameManager gm, Rect area)
+        {
+            float y = area.y;
+            Lbl(new Rect(area.x, y, area.width, 30), "<b>Night lights</b>   <color=#AAAAAA>nights are dark and more predators come - light up your farm</color>", label);
+            y += 40;
+            Rect row = new Rect(area.x, y, area.width, 150);
+            Row(row);
+            Lbl(new Rect(row.x + 16, row.y + 10, 600, 32), $"<b>Lamp post</b>   <color=#AAAAAA>built: {gm.Lamps}/{GameData.MaxLamps}</color>", label);
+            Lbl(new Rect(row.x + 16, row.y + 48, row.width - 340, 92),
+                "Turns on by itself at night with a warm light. Predators move 40% slower near a lit lamp and leave animals in the light alone when they can. " +
+                "Lamps are built around the Chicken Run first, then the yard, then your other fields.", wrap);
+            if (gm.Lamps >= GameData.MaxLamps)
+                Lbl(new Rect(row.xMax - 300, row.y + 50, 290, 36), "<color=#AAAAAA>All lamp spots are used</color>", small);
+            else if (Btn(new Rect(row.xMax - 300, row.y + 46, 284, 54), $"Buy lamp - {GameData.LampPrice} coins", bigButton))
+                Confirm("Buy a lamp post?", $"Pay {GameData.LampPrice} coins. It is built at the next free spot around your farm and lights up every night.", "Buy lamp", gm.BuyLamp);
+            y += 166;
+            Lbl(new Rect(area.x, y, area.width, 60), "<color=#AAAAAA>Your farmer also carries a lantern at night. It switches on by itself.</color>", wrap);
         }
 
         void DrawSell(GameManager gm, Rect area)

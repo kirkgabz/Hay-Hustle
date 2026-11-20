@@ -15,6 +15,7 @@ namespace HayHustle
             ProductPickup.All.Clear();
             Worker.ClearClaims();
             Tutorial.Stop();
+            Backend.ResetRuntime();
         }
     }
 }

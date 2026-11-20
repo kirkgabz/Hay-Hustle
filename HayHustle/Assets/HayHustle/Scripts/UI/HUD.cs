@@ -307,15 +307,116 @@ namespace HayHustle
 
         // ================= Title & character select =================
 
+        // ================= Sign in / Sign up =================
+
+        int authTab;                       // 0 = sign in, 1 = sign up
+        string authEmail, authPass = "", authPass2 = "", authError = "";
+        bool showPass, rememberMe = true;
+
+        void DrawAuth(GameManager gm)
+        {
+            if (authEmail == null) authEmail = Backend.SavedEmail;
+            Block(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.3f));
+            ShadowLabel(new Rect(0, 40, W, 120), "HAY HUSTLE", title, new Color(1f, 0.84f, 0.32f));
+
+            bool signUp = authTab == 1;
+            float bw = 460, x = (W - bw) / 2f;
+            Rect box = new Rect(x - 30, 180, bw + 60, signUp ? 560 : 480);
+            PanelBg(box);
+            float y = box.y + 24;
+
+            if (Backend.Busy && Backend.HasSavedSession && !Backend.SignedIn && string.IsNullOrEmpty(authPass))
+            {
+                Lbl(new Rect(box.x, y + 120, box.width, 40), "Signing you in...", h2c);
+                return;
+            }
+
+            if (Tgl(new Rect(x, y, bw / 2f - 4, 46), !signUp, "Sign in") && signUp) { authTab = 0; authError = ""; }
+            if (Tgl(new Rect(x + bw / 2f + 4, y, bw / 2f - 4, 46), signUp, "Sign up") && !signUp) { authTab = 1; authError = ""; }
+            y += 64;
+
+            Lbl(new Rect(x, y, bw, 26), "Email", small);
+            y += 28;
+            authEmail = GUI.TextField(P(new Rect(x, y, bw, 46)), authEmail ?? "", 120, textField);
+            y += 58;
+            Lbl(new Rect(x, y, bw, 26), "Password" + (signUp ? "  (at least 6 characters)" : ""), small);
+            y += 28;
+            authPass = showPass ? GUI.TextField(P(new Rect(x, y, bw, 46)), authPass, 72, textField)
+                                : GUI.PasswordField(P(new Rect(x, y, bw, 46)), authPass, '*', 72, textField);
+            y += 58;
+            if (signUp)
+            {
+                Lbl(new Rect(x, y, bw, 26), "Confirm password", small);
+                y += 28;
+                authPass2 = showPass ? GUI.TextField(P(new Rect(x, y, bw, 46)), authPass2, 72, textField)
+                                     : GUI.PasswordField(P(new Rect(x, y, bw, 46)), authPass2, '*', 72, textField);
+                y += 58;
+            }
+
+            showPass = Tgl(new Rect(x, y, bw / 2f - 4, 38), showPass, showPass ? "Hide password" : "Show password");
+            rememberMe = Tgl(new Rect(x + bw / 2f + 4, y, bw / 2f - 4, 38), rememberMe, rememberMe ? "Stay signed in: ON" : "Stay signed in: OFF");
+            y += 52;
+
+            if (!string.IsNullOrEmpty(authError))
+            {
+                float eh = CalcH(wrap, authError, bw);
+                Lbl(new Rect(x, y, bw, eh), $"<color=#{Hex(Palette.UiRed)}>{authError}</color>", wrap);
+                y += eh + 8;
+            }
+
+            bool enter = Event.current.type == EventType.KeyDown &&
+                         (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter);
+            GUI.enabled = !Backend.Busy && confirm == null;
+            string label = Backend.Busy ? "Please wait..." : signUp ? "Create account" : "Sign in";
+            if ((Btn(new Rect(x, y, bw, 56), label, bigButton) || (enter && GUI.enabled)) && !Backend.Busy) SubmitAuth(gm, signUp);
+            GUI.enabled = confirm == null;
+            y += 70;
+
+            if (Btn(new Rect(x + bw / 2f - 110, y, 220, 40), "Play offline"))
+            {
+                Backend.Offline = true;
+                authError = "";
+            }
+            Lbl(new Rect(16, H - 36, 400, 28), "Hay Hustle  v0.5", tiny);
+        }
+
+        void SubmitAuth(GameManager gm, bool signUp)
+        {
+            string email = (authEmail ?? "").Trim();
+            if (!email.Contains("@") || !email.Contains(".")) { authError = "Please enter a valid email address."; return; }
+            if (authPass.Length < 6) { authError = "Password must be at least 6 characters."; return; }
+            if (signUp && authPass != authPass2) { authError = "The two passwords do not match."; return; }
+            authError = "";
+            System.Action<bool, string> done = (ok, err) =>
+            {
+                if (ok)
+                {
+                    authPass = authPass2 = "";
+                    gm.Notify(signUp ? $"Welcome! Account created for {Backend.Email}." : $"Signed in as {Backend.Email}.", Palette.UiGreen, 5f);
+                    FX.Play(Sfx.Coin, 0.5f);
+                }
+                else
+                {
+                    authError = err;
+                    FX.Play(Sfx.Error, 0.3f);
+                }
+            };
+            if (signUp) Backend.SignUp(email, authPass, rememberMe, done);
+            else Backend.SignIn(email, authPass, rememberMe, done);
+        }
+
         void DrawTitle(GameManager gm)
         {
+            if (!Backend.SignedIn && !Backend.Offline) { DrawAuth(gm); return; }
             Block(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.25f));
             ShadowLabel(new Rect(0, 90, W, 130), "HAY HUSTLE", title, new Color(1f, 0.84f, 0.32f));
             ShadowLabel(new Rect(0, 215, W, 44), "Grow it.  Guard it.  Hustle it.", h2c, Color.white);
 
+            if (showBackups) { DrawBackups(gm); return; }
             bool hasSave = SaveSystem.Exists;
+            bool hasBackups = SaveSystem.ListBackups().Count > 0;
             float bw = 360, x = (W - bw) / 2f;
-            Rect box = new Rect(x - 30, 300, bw + 60, hasSave ? 300 : 220);
+            Rect box = new Rect(x - 30, 300, bw + 60, (hasSave ? 300 : 220) + (hasBackups ? 80 : 0));
             PanelBg(box);
             float y = box.y + 30;
             if (hasSave)
@@ -329,9 +430,63 @@ namespace HayHustle
                 else gm.EnterCharacterSelect();
             }
             y += 80;
+            if (hasBackups)
+            {
+                if (Btn(new Rect(x, y, bw, 64), "Restore backup", bigButton)) showBackups = true;
+                y += 80;
+            }
             if (Btn(new Rect(x, y, bw, 64), "Quit", bigButton))
                 Confirm("Quit Hay Hustle?", "Your farm is saved automatically.", "Quit", Application.Quit, true);
-            Lbl(new Rect(16, H - 36, 400, 28), "Hay Hustle  v0.3", tiny);
+            Lbl(new Rect(16, H - 36, 400, 28), "Hay Hustle  v0.5", tiny);
+
+            // Account
+            Rect acc = new Rect(W - 470, H - 74, 456, 60);
+            PanelBg(acc);
+            if (Backend.SignedIn)
+            {
+                Lbl(new Rect(acc.x + 14, acc.y, 300, acc.height), $"Signed in as <b>{Backend.Email}</b>", small);
+                if (Btn(new Rect(acc.xMax - 130, acc.y + 10, 116, 40), "Sign out"))
+                    Confirm("Sign out?", "You will go back to the sign-in screen. Your farm stays saved on this PC.", "Sign out", () => { Backend.SignOut(); authTab = 0; }, true);
+            }
+            else
+            {
+                Lbl(new Rect(acc.x + 14, acc.y, 300, acc.height), "Playing offline", small);
+                if (Btn(new Rect(acc.xMax - 130, acc.y + 10, 116, 40), "Sign in")) Backend.Offline = false;
+            }
+        }
+
+        bool showBackups;
+
+        void DrawBackups(GameManager gm)
+        {
+            var list = SaveSystem.ListBackups();
+            Rect r = CenterRect(900, 200 + list.Count * 96);
+            PanelBg(r);
+            Lbl(new Rect(r.x + 26, r.y + 16, r.width - 52, 40), "Restore a backup", h2);
+            Lbl(new Rect(r.x + 26, r.y + 58, r.width - 52, 28), "A backup is made every time you click Continue, and before starting a New Farm. Newest first.", small);
+            float y = r.y + 100;
+            foreach (var b in list)
+            {
+                Rect row = new Rect(r.x + 26, y, r.width - 52, 84);
+                Row(row);
+                Lbl(new Rect(row.x + 16, row.y + 6, row.width - 260, 34), $"<b>Backup {b.Index}</b>   <color=#AAAAAA>{b.Time:MMM d, yyyy  h:mm tt}</color>", label);
+                Lbl(new Rect(row.x + 16, row.y + 42, row.width - 260, 32), b.Summary, small);
+                int idx = b.Index;
+                string when = b.Time.ToString("MMM d, h:mm tt");
+                if (Btn(new Rect(row.xMax - 216, row.y + 18, 200, 48), "Restore"))
+                    Confirm("Restore this backup?", $"Your farm will go back to how it was on {when}. Your current save is kept aside first, so it is not lost.", "Restore", () =>
+                    {
+                        if (SaveSystem.Restore(idx))
+                        {
+                            gm.Notify("Backup restored. Click Continue to play it.", Palette.UiGreen, 6f);
+                            FX.Play(Sfx.Coin, 0.5f);
+                        }
+                        else gm.Notify("Could not restore that backup.", Palette.UiRed, 6f);
+                        showBackups = false;
+                    }, true);
+                y += 96;
+            }
+            if (Btn(new Rect(r.x + 26, r.yMax - 66, 200, 48), "Back")) showBackups = false;
         }
 
         void DrawCharacterSelect(GameManager gm)
@@ -525,7 +680,7 @@ namespace HayHustle
             {
                 if (!p || p.Hidden || p.Def == null) continue;
                 if (!ToGui(cam, p.transform.position + Vector3.up * p.BarHeight, out var g)) continue;
-                int max = Mathf.Max(1, p.Def.Hits);
+                int max = Mathf.Max(1, p.MaxHits);
                 int left = Mathf.Clamp(p.HitsLeft, 0, max);
                 float w = Mathf.Clamp(max * 22f, 70f, 160f), h = 13f;
                 Rect bar = new Rect(g.x - w / 2f, g.y, w, h);

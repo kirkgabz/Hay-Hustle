@@ -90,8 +90,9 @@ namespace HayHustle
             Settings.Load();
 
             Time.timeScale = 0f; // the world is paused on the menus
-            if (SaveSystem.Exists) GoToTitle(false);
-            else EnterCharacterSelect();
+            GoToTitle(false);   // front screen: sign in / sign up, then Continue or New Farm
+            if (Backend.HasSavedSession)
+                Backend.Resume((ok, err) => { if (!ok && !string.IsNullOrEmpty(err)) Notify(err, Palette.UiRed, 6f); });
         }
 
         void Update()
@@ -153,6 +154,7 @@ namespace HayHustle
 
         public void StartNewGame(CharacterChoice choice, string farmName)
         {
+            SaveSystem.Backup(); // keep the old farm, just in case
             ClearWorld();
             WorldBuilder.ShowStage(false);
             FarmName = string.IsNullOrWhiteSpace(farmName) ? "My Farm" : farmName.Trim();
@@ -186,6 +188,7 @@ namespace HayHustle
 
         public void ContinueGame()
         {
+            SaveSystem.Backup(); // a copy from the start of every play session
             var d = SaveSystem.Load();
             if (d == null) { EnterCharacterSelect(); return; }
 
@@ -247,7 +250,12 @@ namespace HayHustle
             for (int i = 0; i < Mathf.Min(d.lamps, GameData.MaxLamps); i++) { Lamps++; PlaceLamp(); }
             for (int i = 0; i < d.cats; i++) SpawnHelper(HelperKind.Cat);
             for (int i = 0; i < d.dogs; i++) SpawnHelper(HelperKind.Dog);
-            if (d.workers != null) foreach (var w in d.workers) SpawnWorker((WorkerKind)w);
+            if (d.workers != null)
+                for (int i = 0; i < d.workers.Count; i++)
+                {
+                    var w = SpawnWorker((WorkerKind)d.workers[i]);
+                    if (d.workerFields != null && i < d.workerFields.Count) w.AssignedField = d.workerFields[i];
+                }
             TutorialDone = d.tutorialDone || d.version < 2;
             BeginPlay();
         }
@@ -328,7 +336,12 @@ namespace HayHustle
                 for (int i = 0; i < f.Grass.Count; i++) fs.grass[i] = f.Grass[i].Amount;
                 d.fields.Add(fs);
             }
-            foreach (var w in Workers) if (w) d.workers.Add((int)w.Kind);
+            foreach (var w in Workers)
+            {
+                if (!w) continue;
+                d.workers.Add((int)w.Kind);
+                d.workerFields.Add(w.AssignedField);
+            }
             foreach (var a in Animals)
             {
                 if (!a) continue;
@@ -716,7 +729,10 @@ namespace HayHustle
             if (Rank < d.UnlockRank) return;
             if (CountWorkers(kind) >= d.Max) { Notify($"You already have {d.Max} {d.Name}(s).", Palette.UiRed); return; }
             if (!Spend(d.HireCost)) return;
+            bool firstGuard = kind == WorkerKind.Guard && CountWorkers(WorkerKind.Guard) == 0;
             var w = SpawnWorker(kind);
+            if (firstGuard)
+                Notify("With a Guard on duty, other predators may visit too - but they will be weak and easy to catch.", Palette.UiGold, 7f);
             AddXp(5);
             Notify($"You hired a {d.Name}! Wage: {d.Wage} coins per day.", Palette.UiGreen, 5f);
             FX.Play(Sfx.Coin, 0.5f);

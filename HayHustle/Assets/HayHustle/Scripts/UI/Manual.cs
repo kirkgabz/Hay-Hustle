@@ -94,6 +94,7 @@ namespace HayHustle
             "Chickens: <b>click the NEST</b> (straw circle next to the well). Uses 1 egg. A chick hatches after 25s (small chance of a Golden Hen!).\n" +
             "Sheep and cows: <b>click the BREEDING BARN</b> (red barn, Rank 4) with 2 well-fed adults of the same kind. Baby after 40s. Two Prime parents: 10% rare baby.\n\n" +
             "<b>Animals and perks</b>\n" +
+            "Up to 5 of each kind (one field each).\n" +
             "Chicken (Rank 1) - Eggs. Grass near chickens grows thicker.\n" +
             "Sheep (Rank 3) - Wool. Hears predators early (+1.5s warning).\n" +
             "Cow (Rank 5) - Milk. Makes grass regrow.\n" +
@@ -117,6 +118,8 @@ namespace HayHustle
             "Snake (Rank 6) - 2 hits. Hides in tall grass, eats eggs.\n" +
             "Rats (Rank 10) - 1 hit each, in groups. Steal from the warehouse - catch them to get the goods back.\n" +
             "Bear (Rank 15, night) - 12 hits. Takes big animals.\n\n" +
+            "<b>Difficulty</b>: until you hire a <b>Guard</b> (Shop -> Workers, Rank 3), <b>only foxes</b> come, one at a time. " +
+            "With a Guard on duty other predators can come too, but they are weak: about half the hits to catch, and slower.\n\n" +
             "No predators come during the tutorial. Night brings more of them - your farmer carries a lantern.",
 
             // ---------------- Defense ----------------
@@ -130,39 +133,44 @@ namespace HayHustle
             "<b>Animals that defend</b>\n" +
             "Goats headbutt snakes and rats. Llamas and the rare Brave Cow kick foxes, wolves and bears. Turkeys keep hawks away. Adult sheep warn you earlier.\n\n" +
             "<b>Guards</b> (Shop -> Workers): hired guards chase and catch predators for you.\n\n" +
-            "<b>Lamp posts</b> (Shop -> Farm, 250 each, up to 10)\n" +
+            "<b>Lamp posts</b> (Shop -> <b>Lights</b>, 250 each, up to 10)\n" +
             "Built around your fields and the yard. They light up by themselves at night. Predators move 40% slower near a lit lamp and leave animals in the light alone when they can.",
 
             // ---------------- Workers ----------------
             "<b>Hire workers</b>: Shop -> <b>Workers</b> -> <b>Hire</b> (confirm).\n" +
             "You pay a hiring fee now and a <b>wage every morning</b>. If you can't pay the wage, the worker quits.\n" +
             "Workers walk around the farm; their name and current job float above their head.\n\n" +
-            "<b>Collector</b> (Rank 2, hire 400, 40/day, up to 2)\n" +
+            "<b>Collector</b> (Rank 2, hire 400, 40/day, up to 4)\n" +
             "Picks up goods before they spoil.\n\n" +
-            "<b>Water Carrier</b> (Rank 3, hire 500, 50/day)\n" +
+            "<b>Water Carrier</b> (Rank 3, hire 500, 50/day, up to 4)\n" +
             "Fetches water from the well and replants empty plots in all your fields.\n\n" +
             "<b>Factory Hand</b> (Rank 5, hire 800, 80/day)\n" +
             "Starts products in your buildings and collects them when ready.\n\n" +
             "<b>Driver</b> (Rank 6, hire 600, 60/day)\n" +
             "When there are enough goods, loads the truck (WANTED first, then the most valuable) and sends it. " +
             "Keeps 6 of every raw good your buildings and nest need.\n\n" +
-            "<b>Guard</b> (Rank 4, hire 1200, 100/day, up to 2)\n" +
+            "<b>Guard</b> (Rank 3, hire 1200, 100/day, up to 4)\n" +
             "Patrols your fields with a pitchfork. Runs after any predator and fights it until it is caught (a hawk only when it dives low).\n\n" +
+            "<b>Which field do they work in?</b>\n" +
+            "Collectors, Water Carriers and Guards work in <b>All fields (rotation)</b> by default - they visit your fields one after another. " +
+            "In Shop -> Workers, click a worker's <b>Works in</b> button to give them one field instead (click again to go to the next field). " +
+            "Hire up to 4 of each, e.g. one Collector for the Chicken Run and one for the Sheep Meadow.\n\n" +
             "<b>Dismiss one</b> sends a worker away (no refund).",
 
             // ---------------- Fields ----------------
             "<b>Every kind of animal has its own field</b>\n" +
-            "Your chickens live in the <b>Chicken Run</b> (yours from the start). To keep any other animal, first buy its field.\n" +
-            "Three ways to buy a field: <b>click its FOR SALE sign</b>, Shop -> <b>Farm</b> -> <b>Buy</b>, or the <b>Buy field</b> button next to the animal in Shop -> Animals.\n\n" +
-            "Chicken Run - chickens, yours from the start, 72 plots, up to 30.\n" +
-            "Sheep Meadow - Rank 3, 1000 coins, south of the Chicken Run.\n" +
-            "Cow Pasture - Rank 5, 2500 coins, south-west.\n" +
-            "Goat Hill - Rank 7, 3500 coins, south-east.\n" +
-            "Pig Pen - Rank 9, 5000 coins, far west.\n" +
-            "Turkey Yard - Rank 11, 6500 coins, far east.\n" +
-            "Llama Ridge - Rank 14, 9000 coins, far south.\n" +
-            "Each new field has 42 grass plots and room for 12 animals.\n\n" +
-            "Remember to plant grass in every field - or hire a Water Carrier.",
+            "Every field is the same size: <b>4 x 4 grass plots</b> and room for <b>5 animals</b>. They sit in a neat grid behind the yard, so they are all close by.\n" +
+            "Your chickens live in the <b>Chicken Run</b> (yours from the start). To keep any other animal, first buy its field:\n" +
+            "click its <b>FOR SALE sign</b>, or Shop -> <b>Farm</b> -> <b>Buy</b>, or the <b>Buy field</b> button next to the animal in Shop -> Animals.\n\n" +
+            "Chicken Run - chickens, free (front left)\n" +
+            "Sheep Meadow - Rank 3, 1000 coins (front right)\n" +
+            "Cow Pasture - Rank 5, 2500 coins (middle left)\n" +
+            "Goat Hill - Rank 7, 3500 coins (middle right)\n" +
+            "Pig Pen - Rank 9, 5000 coins (back left)\n" +
+            "Turkey Yard - Rank 11, 6500 coins (back right)\n" +
+            "Llama Ridge - Rank 14, 9000 coins (at the back)\n\n" +
+            "A sign over each gate shows how many animals are inside, e.g. \"Chicken Run 3/5\" (red = FULL).\n" +
+            "Keep the plots planted so your 5 animals never go hungry - or hire a Water Carrier.",
 
             // ---------------- Orders ----------------
             "<b>Order Board</b>\n" +
@@ -194,7 +202,12 @@ namespace HayHustle
             "<b>Replay tutorial</b> - shows the step-by-step guide again.\n" +
             "<b>Save & quit to title</b> - saves and goes back to the title screen.\n" +
             "<b>Quit game</b> - saves and closes the game.\n\n" +
+            "<b>Account</b>: the first screen is <b>Sign in / Sign up</b> (email + password, no code or email link needed). " +
+            "Tick <b>Stay signed in</b> so you don't have to type it every time. <b>Play offline</b> skips signing in. " +
+            "Sign out from the title screen (bottom right).\n" +
             "<b>Saving</b>: the game also saves automatically every 30 seconds.\n" +
+            "<b>Backups</b>: a copy of your farm is kept every time you click Continue and before a New Farm (the last 3). " +
+            "On the title screen, click <b>Restore backup</b> to go back to one of them. Your current save is kept aside first.\n" +
             "On the title screen, <b>Continue</b> loads your farm. <b>New Farm</b> starts over (it asks to confirm).",
         };
     }

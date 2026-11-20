@@ -111,6 +111,7 @@ Chickens: **click the NEST** (straw circle next to the well). Uses 1 egg. A chic
 Sheep and cows: **click the BREEDING BARN** (red barn, Rank 4) with 2 well-fed adults of the same kind. Baby after 40s. Two Prime parents: 10% rare baby.  
   
 **Animals and perks**  
+Up to 5 of each kind (one field each).  
 Chicken (Rank 1) - Eggs. Grass near chickens grows thicker.  
 Sheep (Rank 3) - Wool. Hears predators early (+1.5s warning).  
 Cow (Rank 5) - Milk. Makes grass regrow.  
@@ -138,6 +139,8 @@ Snake (Rank 6) - 2 hits. Hides in tall grass, eats eggs.
 Rats (Rank 10) - 1 hit each, in groups. Steal from the warehouse - catch them to get the goods back.  
 Bear (Rank 15, night) - 12 hits. Takes big animals.  
   
+**Difficulty**: until you hire a **Guard** (Shop -> Workers, Rank 3), **only foxes** come, one at a time. With a Guard on duty other predators can come too, but they are weak: about half the hits to catch, and slower.  
+  
 No predators come during the tutorial. Night brings more of them - your farmer carries a lantern.
 
 ## 8. Defense
@@ -157,7 +160,7 @@ Goats headbutt snakes and rats. Llamas and the rare Brave Cow kick foxes, wolves
   
 **Guards** (Shop -> Workers): hired guards chase and catch predators for you.  
   
-**Lamp posts** (Shop -> Farm, 250 each, up to 10)  
+**Lamp posts** (Shop -> **Lights**, 250 each, up to 10)  
 Built around your fields and the yard. They light up by themselves at night. Predators move 40% slower near a lit lamp and leave animals in the light alone when they can.
 
 ## 9. Workers
@@ -166,10 +169,10 @@ Built around your fields and the yard. They light up by themselves at night. Pre
 You pay a hiring fee now and a **wage every morning**. If you can't pay the wage, the worker quits.  
 Workers walk around the farm; their name and current job float above their head.  
   
-**Collector** (Rank 2, hire 400, 40/day, up to 2)  
+**Collector** (Rank 2, hire 400, 40/day, up to 4)  
 Picks up goods before they spoil.  
   
-**Water Carrier** (Rank 3, hire 500, 50/day)  
+**Water Carrier** (Rank 3, hire 500, 50/day, up to 4)  
 Fetches water from the well and replants empty plots in all your fields.  
   
 **Factory Hand** (Rank 5, hire 800, 80/day)  
@@ -178,27 +181,31 @@ Starts products in your buildings and collects them when ready.
 **Driver** (Rank 6, hire 600, 60/day)  
 When there are enough goods, loads the truck (WANTED first, then the most valuable) and sends it. Keeps 6 of every raw good your buildings and nest need.  
   
-**Guard** (Rank 4, hire 1200, 100/day, up to 2)  
+**Guard** (Rank 3, hire 1200, 100/day, up to 4)  
 Patrols your fields with a pitchfork. Runs after any predator and fights it until it is caught (a hawk only when it dives low).  
+  
+**Which field do they work in?**  
+Collectors, Water Carriers and Guards work in **All fields (rotation)** by default - they visit your fields one after another. In Shop -> Workers, click a worker's **Works in** button to give them one field instead (click again to go to the next field). Hire up to 4 of each, e.g. one Collector for the Chicken Run and one for the Sheep Meadow.  
   
 **Dismiss one** sends a worker away (no refund).
 
 ## 10. Fields
 
 **Every kind of animal has its own field**  
-Your chickens live in the **Chicken Run** (yours from the start). To keep any other animal, first buy its field.  
-Three ways to buy a field: **click its FOR SALE sign**, Shop -> **Farm** -> **Buy**, or the **Buy field** button next to the animal in Shop -> Animals.  
+Every field is the same size: **4 x 4 grass plots** and room for **5 animals**. They sit in a neat grid behind the yard, so they are all close by.  
+Your chickens live in the **Chicken Run** (yours from the start). To keep any other animal, first buy its field:  
+click its **FOR SALE sign**, or Shop -> **Farm** -> **Buy**, or the **Buy field** button next to the animal in Shop -> Animals.  
   
-Chicken Run - chickens, yours from the start, 72 plots, up to 30.  
-Sheep Meadow - Rank 3, 1000 coins, south of the Chicken Run.  
-Cow Pasture - Rank 5, 2500 coins, south-west.  
-Goat Hill - Rank 7, 3500 coins, south-east.  
-Pig Pen - Rank 9, 5000 coins, far west.  
-Turkey Yard - Rank 11, 6500 coins, far east.  
-Llama Ridge - Rank 14, 9000 coins, far south.  
-Each new field has 42 grass plots and room for 12 animals.  
+Chicken Run - chickens, free (front left)  
+Sheep Meadow - Rank 3, 1000 coins (front right)  
+Cow Pasture - Rank 5, 2500 coins (middle left)  
+Goat Hill - Rank 7, 3500 coins (middle right)  
+Pig Pen - Rank 9, 5000 coins (back left)  
+Turkey Yard - Rank 11, 6500 coins (back right)  
+Llama Ridge - Rank 14, 9000 coins (at the back)  
   
-Remember to plant grass in every field - or hire a Water Carrier.
+A sign over each gate shows how many animals are inside, e.g. "Chicken Run 3/5" (red = FULL).  
+Keep the plots planted so your 5 animals never go hungry - or hire a Water Carrier.
 
 ## 11. Orders
 
@@ -237,6 +244,8 @@ Missing a day resets the streak to Day 1.
 **Save & quit to title** - saves and goes back to the title screen.  
 **Quit game** - saves and closes the game.  
   
+**Account**: the first screen is **Sign in / Sign up** (email + password, no code or email link needed). Tick **Stay signed in** so you don't have to type it every time. **Play offline** skips signing in. Sign out from the title screen (bottom right).  
 **Saving**: the game also saves automatically every 30 seconds.  
+**Backups**: a copy of your farm is kept every time you click Continue and before a New Farm (the last 3). On the title screen, click **Restore backup** to go back to one of them. Your current save is kept aside first.  
 On the title screen, **Continue** loads your farm. **New Farm** starts over (it asks to confirm).
 
