@@ -67,6 +67,8 @@ namespace HayHustle
         public int nextSurvivorId, bunkLevel, barnLevel, farmerCrop;
         public float cropGateDamage;
         public int[] seeds;
+        public float wood = -1f;   // -1 = older save
+        public int guardWeapon;
     }
 
     /// <summary>

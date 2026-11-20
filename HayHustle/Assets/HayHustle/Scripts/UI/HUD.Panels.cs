@@ -146,7 +146,20 @@ namespace HayHustle
         void DrawWorkers(GameManager gm, Rect area)
         {
             Lbl(new Rect(area.x, area.y, area.width, 26), $"Wages are paid every morning: <color=#{Hex(Palette.UiGold)}>{gm.TotalWages} coins/day</color>. Click a worker's field button to choose where they work.", small);
-            Rect list = new Rect(area.x, area.y + 32, area.width, area.height - 32);
+            // Guard weapons (all guards use the current one)
+            {
+                var cur = GameData.GuardWeapons[gm.GuardWeaponLevel];
+                Row(new Rect(area.x, (area.y + 32), area.width, 50));
+                Lbl(new Rect(area.x + 14, (area.y + 32), area.width - 340, 50), $"<b>Guard weapon:</b> {cur.Name}  <color=#AAAAAA>({cur.Damage} damage per hit, {cur.Cooldown:0.0}s between hits)</color>", small);
+                if (gm.GuardWeaponLevel < GameData.GuardWeapons.Length - 1)
+                {
+                    var next = GameData.GuardWeapons[gm.GuardWeaponLevel + 1];
+                    if (Btn(new Rect(area.x + area.width - 320, (area.y + 32) + 6, 310, 38), $"Upgrade to {next.Name} - {next.Cost}"))
+                        Confirm($"Upgrade to the {next.Name}?", $"Pay {next.Cost} coins. Every guard (hired and survivors) gets a {next.Name}: {next.Damage} damage per hit.", "Upgrade", gm.UpgradeGuardWeapons);
+                }
+                else Lbl(new Rect(area.x + area.width - 320, (area.y + 32), 310, 50), $"<color=#{Hex(Palette.UiGreen)}>Best weapon</color>", small);
+            }
+            Rect list = new Rect(area.x, area.y + 90, area.width, area.height - 90);
             const float step = 132f;
             float contentH = 0f;
             foreach (var wd in GameData.Workers.Values) contentH += step + (IsFieldJob(wd.Kind) ? gm.CountWorkers(wd.Kind) * 46f : 0f);
@@ -528,6 +541,20 @@ namespace HayHustle
                     Confirm("Upgrade the Bunkhouse?", $"Pay {cost} coins for {GameData.BedsPerLevel} more beds, so more survivors can join.", "Upgrade", gm.UpgradeBunkhouse);
             }
             y += 44;
+            // Guard weapons (all guards use the current one)
+            {
+                var cur = GameData.GuardWeapons[gm.GuardWeaponLevel];
+                Row(new Rect(x, y, w, 50));
+                Lbl(new Rect(x + 14, y, w - 340, 50), $"<b>Guard weapon:</b> {cur.Name}  <color=#AAAAAA>({cur.Damage} damage per hit, {cur.Cooldown:0.0}s between hits)</color>", small);
+                if (gm.GuardWeaponLevel < GameData.GuardWeapons.Length - 1)
+                {
+                    var next = GameData.GuardWeapons[gm.GuardWeaponLevel + 1];
+                    if (Btn(new Rect(x + w - 320, y + 6, 310, 38), $"Upgrade to {next.Name} - {next.Cost}"))
+                        Confirm($"Upgrade to the {next.Name}?", $"Pay {next.Cost} coins. Every guard (hired and survivors) gets a {next.Name}: {next.Damage} damage per hit.", "Upgrade", gm.UpgradeGuardWeapons);
+                }
+                else Lbl(new Rect(x + w - 320, y, 310, 50), $"<color=#{Hex(Palette.UiGreen)}>Best weapon</color>", small);
+            }
+            y += 58;
 
             if (gm.Survivors.Count == 0)
             {

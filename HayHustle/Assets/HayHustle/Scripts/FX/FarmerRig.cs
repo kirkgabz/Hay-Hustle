@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace HayHustle
 {
-    public enum ActAnim { None, Swing, Fill, Plant, Pickup, Use, Wave, Cheer }
+    public enum ActAnim { None, Swing, Fill, Plant, Pickup, Use, Wave, Cheer, Chop, Hammer }
 
     /// <summary>
     /// Procedural body animation for the farmer, workers and the character-select previews:
@@ -107,6 +107,27 @@ namespace HayHustle
                         armRz = (25f + Mathf.Sin(Now * 10f) * 25f) * w;
                         upperX = -4f * w;
                         break;
+                    case ActAnim.Chop:
+                    {
+                        // Big overhead axe swings, again and again.
+                        float c = Mathf.Repeat(Now * 1.4f, 1f);
+                        armRx = c < 0.45f ? Mathf.Lerp(-30f, -165f, c / 0.45f) : Mathf.Lerp(-165f, -15f, (c - 0.45f) / 0.55f);
+                        armLx = armRx * 0.85f;
+                        upperX = 8f + (c > 0.45f ? 14f : 0f);
+                        toolX = 15f;
+                        k = 1f;
+                        break;
+                    }
+                    case ActAnim.Hammer:
+                    {
+                        float c = Mathf.Abs(Mathf.Sin(Now * 7f));
+                        armRx = -60f - c * 55f;
+                        armLx = -50f;
+                        upperX = 18f;
+                        toolX = 20f;
+                        k = 1f;
+                        break;
+                    }
                     case ActAnim.Cheer:
                         armRx = -170f * w;
                         armLx = -170f * w;

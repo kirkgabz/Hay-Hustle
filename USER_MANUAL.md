@@ -141,6 +141,8 @@ Bear (Rank 15, night) - 12 hits. Takes big animals.
   
 **Difficulty**: until you hire a **Guard** (Shop -> Workers, Rank 3), **only foxes** come, one at a time. With a Guard on duty other predators can come too, but they are weak: about half the hits to catch, and slower.  
   
+Foxes, wolves and bears must **break a field's gate** to reach animals inside (see Gates & Wood).  
+  
 No predators come during the tutorial. Night brings more of them - your farmer carries a lantern.
 
 ## 8. Defense
@@ -231,18 +233,38 @@ They walk around the fence to a field's **gate** and smash it. A red bar over th
 They shove the farmer back (you are never hurt) and bite survivors (survivors get injured, never killed).  
   
 **How to fight back**  
-**Click a damaged gate** to repair it (+40), or give a survivor the **Builder** job.  
+**Repair gates** with wood (see Gates & Wood), or give survivors the **Builder** job.  
 **Guards** (hired workers or survivors on guard duty), **Guard Dogs**, **traps**, **lamp posts** (zombies are slower in the light), and **Llamas** / the Brave Cow (they kick zombies).  
 Until you have a defender only one zombie comes at a time; after that, bigger hordes come at night.
 
-## 13. Survivors
+## 13. Gates & Wood
+
+**Gates**  
+Every field has a gate with **10,000 health**. Zombies, foxes, wolves and bears must break it to reach your animals - they hit it again and again (zombies never stop; animals give up after a while). Hawks fly over, snakes and rats slip through the fence.  
+A bar over a damaged gate shows its health. Damage stays until it is repaired.  
+  
+**Repairing**  
+Repairing adds **100 health per minute for each person** working on it - two builders = 200 per minute.  
+It uses **wood**: 1 wood for every 100 health.  
+**You**: click a damaged gate - your farmer keeps hammering (100 per minute) until you walk away or run out of wood.  
+**Builders** (survivor job): they go to the most damaged gate by themselves and stand side by side to repair it.  
+  
+**Wood**  
+Two groves of trees grow beside the fields. **Click a tree** to chop it (5 seconds, +3 wood). Builders chop trees by themselves with an axe when the wood runs out. A stump grows back after 3 minutes.  
+Your wood is shown at the top left (a new farm starts with 10).  
+  
+**Guards**  
+Guards defend their field plus **2 plots beyond its fence and gate** - they patrol from the middle to the gate and do not chase predators further away.  
+**Weapons** (Shop -> Workers, or the Camp): Pitchfork -> Machete -> Spear -> Battle Axe -> Flaming Sword. Every guard - hired or survivor - uses the best one you bought. Zoom in (mouse wheel) to see them.
+
+## 14. Survivors
 
 **Survivors join your farm**  
 Now and then a survivor walks up the road. A card shows their name and skill - click **Accept** or **Decline**. They need a **free bed** in the Bunkhouse.  
   
 **Camp window** (Camp button, C, or click the **Bunkhouse** next to the road)  
 See every survivor's health, morale and what they are doing. Click **Job** to open the list of jobs and pick one. Use the **Show** buttons to filter by job - each shows how many survivors do it, listed by name (A-Z).  
-**Guard** - fights zombies and predators.   **Builder** - repairs gates.  
+**Guard** - fights zombies and predators near their field.   **Builder** - chops trees and repairs gates.  
 **Farmer** - plants, waters and harvests crops.   **Cook** - makes meals in the Kitchen.  
 **Collector** - picks up goods.   **Water Carrier** - replants grass.   **Off duty** - rests.  
 Survivors work **40% faster at their skill**. Collectors, Guards and Water Carriers can also be given one field ("Works in").  
@@ -253,7 +275,7 @@ Survivors cost no coins, but every morning each one eats **3 food**. Fed survivo
 **Injuries**: a survivor bitten too often is **injured** and walks to the Bunkhouse to rest until healed.  
 **More beds**: Camp -> More beds (+2 per upgrade, up to 10).
 
-## 14. Crops & Food
+## 15. Crops & Food
 
 **Crop Field** (fenced field north-west of the yard, next to the Kitchen)  
 1. Buy seeds: Shop -> **Seeds** (packs of 1, 5 or 10). A new farm starts with 8 wheat seeds.  
@@ -274,7 +296,7 @@ Eggs and milk also count as food (1 each). Your food total is shown at the top l
   
 **Barn storage**: Shop -> Farm -> Barn storage adds +30 storage per level (up to 5 levels). The barn is reinforced - zombies can't get in.
 
-## 15. Rank & Rewards
+## 16. Rank & Rewards
 
 **Farm Rank**  
 Almost everything gives XP: planting, collecting, making products, selling, orders, breeding, catching predators.  
@@ -286,7 +308,7 @@ Day 1: 100 coins   Day 2: water + 50   Day 3: free chick   Day 4: 250 coins
 Day 5: 6 eggs   Day 6: free adult sheep   Day 7: Mystery chest (maybe a Golden Hen!)  
 Missing a day resets the streak to Day 1.
 
-## 16. Menu & Settings
+## 17. Menu & Settings
 
 **Menu** (button or Esc) pauses the game.  
   

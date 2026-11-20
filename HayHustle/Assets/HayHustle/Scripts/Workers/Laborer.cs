@@ -191,9 +191,10 @@ namespace HayHustle
                     if (d.sqrMagnitude > 0.001f) transform.rotation = Quaternion.LookRotation(d);
                     if (prey.CanBeHit && Time.time >= nextStrike)
                     {
-                        nextStrike = Time.time + 0.7f / SpeedBonus;
+                        var weapon = GameData.GuardWeapons[gm.GuardWeaponLevel];
+                        nextStrike = Time.time + weapon.Cooldown / SpeedBonus;
                         if (rig) rig.Play(ActAnim.Swing, 0.3f);
-                        prey.Hit(pos);
+                        prey.Hit(pos, weapon.Damage);
                     }
                 }
                 hasPatrol = false;
@@ -204,7 +205,10 @@ namespace HayHustle
                 {
                     if (hasPatrol && Area(gm) == null) rotation++; // next field in the rotation
                     var field = WorkField(gm);
-                    patrolPoint = field.RandomPoint();
+                    // Patrol between the middle of the field and just outside its gate.
+                    patrolPoint = Random.value < 0.35f
+                        ? field.Gate + new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(1.5f, 3.5f))
+                        : field.RandomPoint();
                     hasPatrol = true;
                 }
                 Status = "Patrolling the " + WorkField(gm).Def.Name;
@@ -229,14 +233,16 @@ namespace HayHustle
         Predator FindPrey(GameManager gm)
         {
             Predator best = null;
-            float bd = 45f;
+            float bd = 80f;
             var area = Area(gm);
             foreach (var p in gm.Predators)
             {
                 if (!p || p.Def == null) continue;
                 float d = GameManager.FlatDistance(p.transform.position, transform.position);
-                // A guard assigned to one field defends that field (and anything that comes very close).
-                if (area != null && !area.Contains(p.transform.position, 15f) && d > 12f) continue;
+                // Guards only fight inside their zone: the field plus 2 plots beyond its fence and gate.
+                Vector3 pp = p.transform.position;
+                bool inZone = area != null ? area.Contains(pp, GameData.GuardZoneMargin) : gm.InGuardZone(pp);
+                if (!inZone) continue;
                 if (d < bd) { bd = d; best = p; }
             }
             return best;
@@ -378,24 +384,94 @@ namespace HayHustle
             });
         }
 
-        /// <summary>Builder: repairs the most damaged gate.</summary>
+        /// <summary>
+        /// Builder: repairs the most damaged gate (100 health per minute, they stack with other builders).
+        /// Repairs use wood - with no wood left, the builder goes and chops a tree first.
+        /// </summary>
+        float builderSlot = 99f;   // where this builder stands along the gate
+
         void ThinkBuilder(GameManager gm)
         {
             FieldGate best = null;
             float worst = GameData.GateMaxHp;
             foreach (var g in gm.Gates)
             {
-                if (!g || g.Hp >= GameData.GateMaxHp || claimed.Contains(g)) continue;
+                if (!g || g.Hp >= GameData.GateMaxHp) continue;
                 if (g.Hp < worst) { worst = g.Hp; best = g; }
             }
             if (best == null) { Status = "All gates are strong"; Idle(new Vector3(0f, 0f, 4f)); return; }
+            if (gm.Wood < 0.5f) { ChopTree(gm); return; }
+
             var gate = best;
-            GoTo(gate.RepairPoint, $"Repairing a gate ({gate.Hp:0}/{GameData.GateMaxHp:0})", () =>
+            // Several builders stand side by side at the gate.
+            if (builderSlot > 9f) builderSlot = Random.Range(-1.6f, 1.6f);
+            float slot = builderSlot;
+            Vector3 spot = gate.RepairPoint + gate.transform.right * slot;
+            if (GameManager.FlatDistance(transform.position, spot) < 1.2f)
             {
-                if (!gate) return;
-                gate.Repair(20f * SpeedBonus);
-                Act(ActAnim.Use, 1.0f);
-            }, gate);
+                Vector3 look = gate.transform.position - transform.position;
+                look.y = 0f;
+                if (look.sqrMagnitude > 0.01f) transform.rotation = Quaternion.LookRotation(look);
+                if (gate.RepairWork(3f, SpeedBonus))
+                {
+                    Act(ActAnim.Hammer, 3f);
+                    Status = $"Repairing the {gate.FieldName} gate ({gate.Hp:0}/{GameData.GateMaxHp:0})";
+                }
+                return;
+            }
+            GoTo(spot, $"Going to repair the {gate.FieldName} gate", null);
+        }
+
+        /// <summary>Walk to the nearest standing tree and chop it (+wood).</summary>
+        void ChopTree(GameManager gm)
+        {
+            ChoppableTree best = null;
+            float bd = float.MaxValue;
+            foreach (var t in gm.Trees)
+            {
+                if (!t || !t.Available || claimed.Contains(t)) continue;
+                float d = GameManager.FlatDistance(t.transform.position, transform.position);
+                if (d < bd) { bd = d; best = t; }
+            }
+            if (best == null) { Status = "Waiting for trees to grow back"; Idle(new Vector3(0f, 0f, 4f)); return; }
+            var tree = best;
+            Vector3 away = transform.position - tree.transform.position;
+            away.y = 0f;
+            Vector3 spot = tree.transform.position + (away.sqrMagnitude > 0.01f ? away.normalized : Vector3.forward) * 1.4f;
+            GoTo(spot, "Going to chop a tree for wood", () =>
+            {
+                if (!tree || !tree.Available) return;
+                Vector3 look = tree.transform.position - transform.position;
+                look.y = 0f;
+                if (look.sqrMagnitude > 0.01f) transform.rotation = Quaternion.LookRotation(look);
+                float time = GameData.WorkerChopSeconds / SpeedBonus;
+                tree.BeginChop(time);
+                Act(ActAnim.Chop, time);
+                Status = "Chopping wood";
+            }, tree);
+        }
+
+        // ================= Tools =================
+
+        /// <summary>Puts the right tool in their hand: the guard weapon for guards, an axe for builders.</summary>
+        public void RefreshTool()
+        {
+            var pivot = FindChild(transform, "ToolPivot");
+            if (pivot == null) return;
+            bool survivor = !(this is Worker);
+            if (!survivor && Job != JobKind.Guard) return; // hired workers keep their own prop (bucket, basket...)
+            for (int i = pivot.childCount - 1; i >= 0; i--) Destroy(pivot.GetChild(i).gameObject);
+            var gm = GameManager.I;
+            if (Job == JobKind.Guard || (survivor && this is Survivor s && s.AssignedJob == JobKind.Guard))
+                Models.BuildWeapon(gm.GuardWeaponLevel, pivot);
+            else if (survivor && this is Survivor b && b.AssignedJob == JobKind.Builder)
+                Models.BuildAxe(pivot);
+        }
+
+        protected static Transform FindChild(Transform root, string name)
+        {
+            foreach (var t in root.GetComponentsInChildren<Transform>(true)) if (t.name == name) return t;
+            return null;
         }
 
         /// <summary>Farmer: harvest ripe crops, water planted ones, plant empty plots.</summary>

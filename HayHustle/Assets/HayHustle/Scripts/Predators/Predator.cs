@@ -38,7 +38,7 @@ namespace HayHustle
         Transform visual, wingL, wingR;
         LimbAnimator limbs;
         FarmerRig zrig;      // zombies walk like people
-        float nextBite;
+        float nextBite, gateTime;
         float hitFlash, retarget, legPhase;
         bool caught;
 
@@ -136,6 +136,7 @@ namespace HayHustle
                 retarget = 2f;
             }
             if (target == null) return null;
+            if (!Def.Flying && GameData.GateDps(Kind) > 0f && GateBlocks(gm, target, flat, dt, out var gateGoal)) return gateGoal;
 
             Vector3 tp = target.transform.position;
             tp.y = 0f;
@@ -224,21 +225,7 @@ namespace HayHustle
             }
             if (target != null)
             {
-                var field = gm.Fields[Mathf.Clamp(target.Field, 0, gm.Fields.Count - 1)];
-                var gate = field.GateObj;
-                if (gate && gate.Intact && !field.Contains(flat, 0.3f))
-                {
-                    // The fence is solid: walk around it to the gate side (north) instead of through it.
-                    float gateZ = field.Center.z + field.HalfZ;
-                    if (flat.z < gateZ + 0.5f)
-                    {
-                        float side = flat.x < field.Center.x ? -1f : 1f;
-                        float outX = field.Center.x + side * (field.HalfX + 1.5f);
-                        if (Mathf.Abs(flat.x - field.Center.x) < field.HalfX + 1.0f) return new Vector3(outX, 0f, flat.z);
-                        return new Vector3(outX, 0f, gateZ + 1.5f);
-                    }
-                    return AttackGate(gate, flat);
-                }
+                if (GateBlocks(gm, target, flat, dt, out var zGoal)) return zGoal;
                 Vector3 tp = target.transform.position;
                 tp.y = 0f;
                 if (GameManager.FlatDistance(tp, flat) < 0.9f)
@@ -257,20 +244,51 @@ namespace HayHustle
                 float d = GameManager.FlatDistance(g.transform.position, flat);
                 if (d < gd) { gd = d; nearest = g; }
             }
-            return nearest ? AttackGate(nearest, flat) : (Vector3?)null;
+            return nearest ? AttackGate(nearest, flat, dt) : (Vector3?)null;
         }
 
-        Vector3? AttackGate(FieldGate gate, Vector3 flat)
+        /// <summary>
+        /// True if the animal is inside a field whose gate is still standing: then walk around the fence to the
+        /// gate and keep hitting it (goal is where to go, or null if this predator gave up and runs away).
+        /// </summary>
+        bool GateBlocks(GameManager gm, Animal a, Vector3 flat, float dt, out Vector3? goal)
+        {
+            goal = null;
+            var field = gm.Fields[Mathf.Clamp(a.Field, 0, gm.Fields.Count - 1)];
+            var gate = field.GateObj;
+            if (!gate || !gate.Intact || field.Contains(flat, 0.3f)) return false;
+            float gateZ = field.Center.z + field.HalfZ;
+            if (flat.z < gateZ + 0.5f)
+            {
+                // The fence is solid: go around it to the gate side (north) instead of through it.
+                float side = flat.x < field.Center.x ? -1f : 1f;
+                float outX = field.Center.x + side * (field.HalfX + 1.5f);
+                goal = Mathf.Abs(flat.x - field.Center.x) < field.HalfX + 1.0f ? new Vector3(outX, 0f, flat.z) : new Vector3(outX, 0f, gateZ + 1.5f);
+                return true;
+            }
+            goal = AttackGate(gate, flat, dt);
+            return true;
+        }
+
+        /// <summary>Hit the gate again and again. Animals give up after a while; zombies never do.</summary>
+        Vector3? AttackGate(FieldGate gate, Vector3 flat, float dt)
         {
             Vector3 gp = gate.RepairPoint;
             gp.y = 0f;
             if (GameManager.FlatDistance(gp, flat) < 1.2f)
             {
+                gateTime += dt;
+                if (Kind != PredatorKind.Zombie && gateTime > GameData.GateGiveUpSeconds)
+                {
+                    GameManager.I.Notify($"The {Def.Name.ToLower()} gave up on the {gate.FieldName} gate.", Palette.UiWhite);
+                    StartFleeing(flat);
+                    return null;
+                }
                 if (Time.time >= nextBite)
                 {
                     nextBite = Time.time + 1.5f;
                     if (zrig) zrig.Play(ActAnim.Swing, 0.4f);
-                    gate.Damage(weak ? 8f : 12f);
+                    gate.Damage(GameData.GateDps(Kind) * 1.5f * (weak ? 0.66f : 1f));
                 }
                 return flat;
             }
@@ -379,10 +397,12 @@ namespace HayHustle
             Destroy(gameObject);
         }
 
-        public void Hit(Vector3 from)
+        public void Hit(Vector3 from) => Hit(from, 1);
+
+        public void Hit(Vector3 from, int damage)
         {
             if (!CanBeHit) return;
-            HitsLeft--;
+            HitsLeft -= Mathf.Max(1, damage);
             hitFlash = 0.15f;
             Vector3 push = transform.position - from;
             push.y = 0f;

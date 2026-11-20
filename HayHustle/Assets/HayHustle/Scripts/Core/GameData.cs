@@ -299,7 +299,43 @@ namespace HayHustle
         public const int BedsPerLevel = 2;
         public static readonly int[] BarnUpgradeCost = { 600, 1200, 2400, 4000, 6000 }; // +30 storage per level
         public const int BarnStoragePerLevel = 30;
-        public const float GateMaxHp = 100f;
+        // ================= Gates, wood and guards =================
+
+        public const float GateMaxHp = 10000f;
+        public const float GateRepairPerMinute = 100f;   // per person repairing (they stack)
+        public const float WoodPer100Hp = 1f;            // repair material
+        public const int WoodPerTree = 3;
+        public const float TreeRegrowSeconds = 180f;
+        public const float PlayerChopSeconds = 5f, WorkerChopSeconds = 8f;
+        public const float GuardZoneMargin = 5f;         // 2 plots beyond the fence and gate
+        public const float GateGiveUpSeconds = 45f;      // animals give up on a gate after this (zombies never do)
+
+        /// <summary>Damage per second a predator does to a gate while attacking it.</summary>
+        public static float GateDps(PredatorKind k) => k switch
+        {
+            PredatorKind.Zombie => 30f,
+            PredatorKind.Bear => 50f,
+            PredatorKind.Wolf => 20f,
+            PredatorKind.Fox => 8f,
+            _ => 0f,   // hawks fly over, snakes and rats slip through the fence
+        };
+
+        public class WeaponDef
+        {
+            public string Name;
+            public int Damage, Cost;
+            public float Cooldown;
+        }
+
+        /// <summary>Guard weapons (Shop > Workers or Camp). Every guard uses the current level.</summary>
+        public static readonly WeaponDef[] GuardWeapons =
+        {
+            new WeaponDef { Name = "Pitchfork",     Damage = 1, Cooldown = 0.8f, Cost = 0 },
+            new WeaponDef { Name = "Machete",       Damage = 1, Cooldown = 0.5f, Cost = 1500 },
+            new WeaponDef { Name = "Spear",         Damage = 2, Cooldown = 0.7f, Cost = 3500 },
+            new WeaponDef { Name = "Battle Axe",    Damage = 3, Cooldown = 0.8f, Cost = 6000 },
+            new WeaponDef { Name = "Flaming Sword", Damage = 4, Cooldown = 0.6f, Cost = 10000 },
+        };
 
         public static readonly string[] SurvivorNames =
         {

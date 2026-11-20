@@ -51,7 +51,7 @@ namespace HayHustle
                     Pitch = Mathf.Clamp(Pitch - d.y * 0.2f, 15f, 75f);
                 }
                 float scroll = mouse.scroll.ReadValue().y;
-                if (Mathf.Abs(scroll) > 0.01f) Distance = Mathf.Clamp(Distance - Mathf.Sign(scroll) * 1.5f, 6f, 28f);
+                if (Mathf.Abs(scroll) > 0.01f) Distance = Mathf.Clamp(Distance - Mathf.Sign(scroll) * 1.5f, 3f, 28f);
             }
 
             var rot = Quaternion.Euler(Pitch, Yaw, 0f);

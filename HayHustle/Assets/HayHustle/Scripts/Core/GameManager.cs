@@ -45,6 +45,8 @@ namespace HayHustle
         public int Mess;                       // spoiled food lying around - attracts rats
         public int FenceLevel, Traps, Lamps;
         public int BunkLevel = 1, BarnLevel;
+        public float Wood;              // material for gate repairs (chop trees)
+        public int GuardWeaponLevel;    // see GameData.GuardWeapons
         public CropKind FarmerCrop = CropKind.Wheat;
         /// <summary>Seeds bought in the Shop, per crop (does not use storage space).</summary>
         public int[] Seeds = new int[System.Enum.GetValues(typeof(CropKind)).Length];
@@ -76,6 +78,7 @@ namespace HayHustle
         public readonly List<Survivor> Survivors = new List<Survivor>();
         public readonly List<FieldGate> Gates = new List<FieldGate>();
         public readonly List<CropPlot> CropPlots = new List<CropPlot>();
+        public readonly List<ChoppableTree> Trees = new List<ChoppableTree>();
         public Survivor Visitor { get; private set; }
         public FieldGate CropGate;
         public Vector3 CropFieldCenter, BunkhouseDoor;
@@ -199,6 +202,8 @@ namespace HayHustle
             Lamps = 0;
             BunkLevel = 1;
             BarnLevel = 0;
+            Wood = 10f;
+            GuardWeaponLevel = 0;
             FarmerCrop = CropKind.Wheat;
             System.Array.Clear(Seeds, 0, Seeds.Length);
             Seeds[(int)CropKind.Wheat] = 8; // a starter pack
@@ -299,6 +304,8 @@ namespace HayHustle
             BarnLevel = Mathf.Clamp(d.barnLevel, 0, GameData.BarnUpgradeCost.Length);
             FarmerCrop = (CropKind)Mathf.Clamp(d.farmerCrop, 0, System.Enum.GetValues(typeof(CropKind)).Length - 1);
             nextSurvivorId = Mathf.Max(1, d.nextSurvivorId);
+            Wood = d.wood < 0f ? 10f : d.wood;
+            GuardWeaponLevel = Mathf.Clamp(d.guardWeapon, 0, GameData.GuardWeapons.Length - 1);
             System.Array.Clear(Seeds, 0, Seeds.Length);
             if (d.seeds != null) for (int i = 0; i < Mathf.Min(Seeds.Length, d.seeds.Length); i++) Seeds[i] = d.seeds[i];
             else Seeds[(int)CropKind.Wheat] = 8; // older saves get a starter pack
@@ -397,6 +404,8 @@ namespace HayHustle
                 nextSurvivorId = nextSurvivorId,
                 cropGateDamage = CropGate ? GameData.GateMaxHp - CropGate.Hp : 0f,
                 seeds = (int[])Seeds.Clone(),
+                wood = Wood,
+                guardWeapon = GuardWeaponLevel,
                 tutorialDone = TutorialDone || !Tutorial.Active,
                 inventory = (int[])Inventory.Clone(),
             };
@@ -794,6 +803,29 @@ namespace HayHustle
             }
             else if (Water <= 0) { Notify("Your bucket is empty - refill it at the well.", Palette.UiRed); FX.Play(Sfx.Error, 0.4f); }
             return watered;
+        }
+
+        // ================= Guards =================
+
+        /// <summary>Where guards defend: every owned field (and the Crop Field) plus 2 plots beyond its fence and gate.</summary>
+        public bool InGuardZone(Vector3 pos)
+        {
+            foreach (var f in Fields) if (f.Owned && f.Contains(pos, GameData.GuardZoneMargin)) return true;
+            float half = 4 * 1.25f + 0.55f + GameData.GuardZoneMargin;
+            return Mathf.Abs(pos.x - CropFieldCenter.x) <= half && Mathf.Abs(pos.z - CropFieldCenter.z) <= half;
+        }
+
+        public void UpgradeGuardWeapons()
+        {
+            if (GuardWeaponLevel >= GameData.GuardWeapons.Length - 1) return;
+            var next = GameData.GuardWeapons[GuardWeaponLevel + 1];
+            if (!Spend(next.Cost)) return;
+            GuardWeaponLevel++;
+            AddXp(20);
+            foreach (var w in Workers) if (w) w.RefreshTool();
+            foreach (var s in Survivors) if (s) s.RefreshTool();
+            Notify($"Guards now carry a {next.Name}: {next.Damage} damage per hit.", Palette.UiGreen, 6f);
+            FX.Play(Sfx.RankUp, 0.5f);
         }
 
         public void UpgradeBunkhouse()

@@ -607,7 +607,7 @@ namespace HayHustle
             Lbl(new Rect(x, y, 320, 26), $"Storage {gm.InventoryTotal}/{gm.StorageCapacity}     Animals {gm.Animals.Count}/{gm.AnimalCapacity}", small);
             y += 26;
             bool lowFood = gm.FoodPoints < gm.FoodNeededPerDay;
-            string food = gm.Survivors.Count == 0 ? $"Food {gm.FoodPoints}" : $"Food {gm.FoodPoints}  (survivors eat {gm.FoodNeededPerDay}/day)";
+            string food = (gm.Survivors.Count == 0 ? $"Food {gm.FoodPoints}" : $"Food {gm.FoodPoints} (eat {gm.FoodNeededPerDay}/day)") + $"   Wood {gm.Wood:0}";
             Lbl(new Rect(x, y, 320, 26), lowFood ? $"<color=#{Hex(Palette.UiRed)}>{food}</color>" : $"<color=#C8F08C>{food}</color>", small);
         }
 
@@ -644,6 +644,7 @@ namespace HayHustle
             if (!p || Open != Panel.None) return;
             string text = null;
             if (p.Busy) text = p.BusyLabel;
+            else if (!string.IsNullOrEmpty(p.Activity)) text = $"<color=#{Hex(Palette.UiGreen)}>{p.Activity}</color>";
             else if (p.Focus != null)
                 text = p.Focus.CanInteract
                     ? $"<color=#{Hex(Palette.UiGold)}>[E]</color>  {p.Focus.Prompt}"

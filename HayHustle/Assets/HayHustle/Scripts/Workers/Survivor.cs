@@ -28,7 +28,15 @@ namespace HayHustle
             Id = id;
             PersonName = name;
             Skill = skill;
-            SetupBody(Models.BuildSurvivor(id * 7919 + 13, transform));
+            var visual = Models.BuildSurvivor(id * 7919 + 13, transform);
+            var arm = FindChild(visual, "ArmR");
+            if (arm != null)
+            {
+                var pivot = new GameObject("ToolPivot").transform;   // weapon or axe goes here
+                pivot.SetParent(arm, false);
+                pivot.localPosition = new Vector3(0f, -0.62f, 0.08f);
+            }
+            SetupBody(visual);
         }
 
         /// <summary>Called when the player accepts them (or when a save is loaded).</summary>
@@ -43,6 +51,7 @@ namespace HayHustle
         {
             AssignedJob = job;
             StopTrip();
+            RefreshTool();
         }
 
         protected override void OnDestroy()

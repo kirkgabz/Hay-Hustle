@@ -334,11 +334,7 @@ namespace HayHustle
                     P(Cube, hand, 0, -0.05f, 0.12f, 0.06f, 0.06f, 0.35f, new Color(0.5f, 0.5f, 0.55f));
                     break;
                 case WorkerKind.Guard:
-                    P(Cyl, hand, 0, 0, 0.6f, 0.035f, 0.75f, 0.035f, Palette.Wood, 90f);
-                    P(Cube, hand, 0, 0, 1.38f, 0.32f, 0.03f, 0.05f, new Color(0.5f, 0.5f, 0.55f));
-                    foreach (var tx in new[] { -0.14f, 0f, 0.14f })
-                        P(Cube, hand, tx, 0, 1.55f, 0.03f, 0.03f, 0.32f, new Color(0.5f, 0.5f, 0.55f));
-                    break;
+                    break; // the weapon is added by Laborer.RefreshTool
                 case WorkerKind.Driver:
                     P(Cube, hand, 0, -0.08f, 0.05f, 0.2f, 0.14f, 0.04f, new Color(0.9f, 0.85f, 0.6f)); // delivery list
                     break;
@@ -514,6 +510,53 @@ namespace HayHustle
                 }
             }
             return root;
+        }
+
+        // ---------------- Tools & weapons (big enough to see when zoomed in) ----------------
+
+        public static void BuildAxe(Transform pivot)
+        {
+            P(Cyl, pivot, 0, 0, 0.45f, 0.045f, 0.5f, 0.045f, Palette.Wood, 90f);
+            P(Cube, pivot, 0, 0.12f, 0.9f, 0.05f, 0.3f, 0.2f, new Color(0.72f, 0.74f, 0.78f));
+        }
+
+        public static void BuildWeapon(int level, Transform pivot)
+        {
+            Color steel = new Color(0.78f, 0.8f, 0.85f), dark = new Color(0.25f, 0.25f, 0.28f);
+            switch (level)
+            {
+                case 0: // Pitchfork
+                    P(Cyl, pivot, 0, 0, 0.7f, 0.045f, 0.8f, 0.045f, Palette.Wood, 90f);
+                    P(Cube, pivot, 0, 0, 1.5f, 0.42f, 0.05f, 0.06f, steel);
+                    foreach (var tx in new[] { -0.18f, 0f, 0.18f })
+                        P(Cube, pivot, tx, 0, 1.75f, 0.05f, 0.05f, 0.45f, steel);
+                    break;
+                case 1: // Machete
+                    P(Cube, pivot, 0, 0, 0.1f, 0.07f, 0.09f, 0.25f, dark);
+                    P(Cube, pivot, 0, 0.04f, 0.65f, 0.03f, 0.2f, 0.9f, steel);
+                    break;
+                case 2: // Spear
+                    P(Cyl, pivot, 0, 0, 0.9f, 0.04f, 1.1f, 0.04f, Palette.Wood, 90f);
+                    P(Cube, pivot, 0, 0, 2.1f, 0.14f, 0.04f, 0.4f, steel, 0f, 0f, 45f);
+                    P(Cube, pivot, 0, 0, 1.85f, 0.12f, 0.12f, 0.06f, new Color(0.7f, 0.15f, 0.12f));
+                    break;
+                case 3: // Battle Axe
+                    P(Cyl, pivot, 0, 0, 0.7f, 0.055f, 0.75f, 0.055f, Palette.DarkWood, 90f);
+                    P(Cube, pivot, 0, 0.22f, 1.3f, 0.06f, 0.5f, 0.42f, steel);
+                    P(Cube, pivot, 0, -0.15f, 1.3f, 0.06f, 0.22f, 0.22f, steel);
+                    break;
+                default: // Flaming Sword
+                {
+                    P(Cube, pivot, 0, 0, 0.12f, 0.08f, 0.08f, 0.28f, dark);
+                    P(Cube, pivot, 0, 0, 0.28f, 0.35f, 0.06f, 0.06f, Palette.Gold);
+                    var blade = P(Cube, pivot, 0, 0, 0.95f, 0.05f, 0.14f, 1.25f, new Color(1f, 0.55f, 0.15f));
+                    var m = new Material(blade.GetComponent<Renderer>().sharedMaterial);
+                    m.EnableKeyword("_EMISSION");
+                    if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", new Color(1f, 0.45f, 0.1f) * 3f);
+                    blade.GetComponent<Renderer>().sharedMaterial = m;
+                    break;
+                }
+            }
         }
 
         static Transform Pivot(Transform parent, string name, float x, float y, float z)

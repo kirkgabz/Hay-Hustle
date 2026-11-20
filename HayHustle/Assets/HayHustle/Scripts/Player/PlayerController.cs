@@ -18,6 +18,41 @@ namespace HayHustle
         public bool Busy => Time.time < busyUntil;
         public string BusyLabel { get; private set; }
         public string HoverLabel { get; private set; }
+        /// <summary>Text for a long action like repairing a gate (shown at the bottom of the screen).</summary>
+        public string Activity { get; private set; }
+
+        FieldGate repairing;
+        float repairAnimAt;
+
+        /// <summary>Start hammering on a gate. Keeps going (100 health per minute, uses wood) until you move away.</summary>
+        public void StartRepair(FieldGate gate)
+        {
+            repairing = gate;
+            task = TaskType.None;
+            FaceTowards(gate.transform.position);
+            FX.Text(gate.transform.position + Vector3.up * 2f, "Repairing... (walk away to stop)", Palette.UiGreen, 0.9f);
+        }
+
+        void StopRepair(string why)
+        {
+            repairing = null;
+            Activity = null;
+            if (!string.IsNullOrEmpty(why)) GameManager.I.Notify(why, Palette.UiWhite);
+        }
+
+        void UpdateRepair(float dt, bool moved)
+        {
+            if (!repairing) { Activity = null; return; }
+            if (moved || task != TaskType.None) { StopRepair("You stopped repairing the gate."); return; }
+            if (GameManager.FlatDistance(transform.position, repairing.transform.position) > 3.6f) { StopRepair(""); return; }
+            if (!repairing.RepairWork(dt))
+            {
+                StopRepair(GameManager.I.Wood <= 0.01f ? "Out of wood! Chop a tree to keep repairing." : "The gate is fully repaired.");
+                return;
+            }
+            if (Time.time >= repairAnimAt) { repairAnimAt = Time.time + 0.9f; PlayAnim(ActAnim.Hammer, 1f); }
+            Activity = $"Repairing the {repairing.FieldName} gate {repairing.Hp:0}/{GameData.GateMaxHp:0}  -  wood {GameManager.I.Wood:0.0}  -  +100 per minute  (walk to stop)";
+        }
 
         enum TaskType { None, Move, Interact, Pickup, Hunt }
 
@@ -68,6 +103,8 @@ namespace HayHustle
             if (d.sqrMagnitude < 0.01f) d = -transform.forward;
             cc.Move(d.normalized * 1.8f);
             task = TaskType.None;
+            repairing = null;
+            Activity = null;
             SetBusy(0.7f, "A zombie knocked you back!");
             PlayAnim(ActAnim.Pickup, 0.6f);
             FX.Text(transform.position + Vector3.up * 2.4f, "Ouch!", Palette.UiRed, 1.1f);
@@ -114,6 +151,7 @@ namespace HayHustle
                 if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) input.x -= 1f;
             }
             if (input.sqrMagnitude > 0.01f) task = TaskType.None; // manual control cancels click orders
+            UpdateRepair(dt, input.sqrMagnitude > 0.01f);
 
             Vector3 fwd = cam ? Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized : Vector3.forward;
             Vector3 right = cam ? Vector3.ProjectOnPlane(cam.transform.right, Vector3.up).normalized : Vector3.right;

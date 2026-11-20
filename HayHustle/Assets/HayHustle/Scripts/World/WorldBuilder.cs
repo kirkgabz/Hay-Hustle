@@ -35,6 +35,7 @@ namespace HayHustle
             BuildOrderBoard(gm, world);
             BuildCropField(gm, world);
             BuildBunkhouse(gm, world);
+            BuildWoodlot(gm, world);
             BuildDecor(world);
             BuildForest(world);
             BuildScatter(world);
@@ -62,6 +63,7 @@ namespace HayHustle
             if (p.x > -25f && p.x < 25f && p.z > 4f && p.z < 19f) return false;    // farmyard
             if (Mathf.Abs(p.x) < 4f && p.z > 15f) return false;                     // road
             if (p.x > -32f && p.x < 20f && p.z > 15f && p.z < 33f) return false;   // crop field, kitchen, bunkhouse
+            if (Mathf.Abs(p.x) > 15f && Mathf.Abs(p.x) < 30f && p.z > -48f && p.z < -21f) return false; // tree groves
             if (p.x < -14f && p.x > -26f && p.z > -19f && p.z < 10f) return false;  // west buildings
             if (p.x > 14f && p.x < 26f && p.z > -21f && p.z < 12f) return false;   // east buildings
             return true;
@@ -350,6 +352,24 @@ namespace HayHustle
             sign.position = new Vector3(c.x + 3.4f, 0f, z0 - 1.3f);
             sign.rotation = Quaternion.Euler(0f, 180f, 0f);
             Models.BuildSign(sign, "Crops");
+        }
+
+        /// <summary>Two groves of choppable trees beside the fields - wood for repairing gates.</summary>
+        static void BuildWoodlot(GameManager gm, Transform world)
+        {
+            var root = new GameObject("Tree Groves").transform;
+            root.SetParent(world);
+            var rng = new System.Random(4242);
+            foreach (var side in new[] { -1f, 1f })
+                foreach (var z in new[] { -25f, -31f, -37f, -43f })
+                    foreach (var x in new[] { 18.5f, 24f })
+                    {
+                        var go = new GameObject("Tree");
+                        go.transform.SetParent(root);
+                        go.transform.position = new Vector3(side * (x + (float)rng.NextDouble() * 1.5f), 0f, z + (float)rng.NextDouble() * 2f);
+                        go.transform.rotation = Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f);
+                        go.AddComponent<ChoppableTree>().Init(0.9f + (float)rng.NextDouble() * 0.3f);
+                    }
         }
 
         static void BuildBunkhouse(GameManager gm, Transform world)

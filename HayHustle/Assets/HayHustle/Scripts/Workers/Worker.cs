@@ -24,6 +24,7 @@ namespace HayHustle
             Def = GameData.Workers[kind];
             SetupBody(Models.BuildWorker(kind, transform));
             GameManager.I.Workers.Add(this);
+            RefreshTool();
         }
 
         protected override void OnDestroy()
