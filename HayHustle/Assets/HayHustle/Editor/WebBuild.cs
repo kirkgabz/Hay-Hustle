@@ -41,6 +41,7 @@ namespace HayHustle.EditorTools
                 return false;
             }
 
+            PrepareForWeb();
             PlayerSettings.WebGL.template = "PROJECT:HayHustle";
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
             PlayerSettings.WebGL.decompressionFallback = true;      // works on any web host without special settings
@@ -88,6 +89,55 @@ namespace HayHustle.EditorTools
             Debug.Log("Hay Hustle: " + msg.Replace("\n", " "));
             if (showDialogs) EditorUtility.DisplayDialog("Hay Hustle web build", msg, "OK");
             return true;
+        }
+
+        /// <summary>
+        /// The farm is built from code at runtime, so Unity can't see what it needs and would leave parts out of the web build:
+        /// - colliders (the ground!) -> keep all engine code;
+        /// - the URP Lit shader and its emission/fog variants -> two material assets in Resources keep them in.
+        /// </summary>
+        static void PrepareForWeb()
+        {
+            PlayerSettings.stripEngineCode = false;
+            PlayerSettings.SetManagedStrippingLevel(UnityEditor.Build.NamedBuildTarget.WebGL, ManagedStrippingLevel.Minimal);
+
+            const string folder = "Assets/HayHustle/Resources/Materials";
+            if (!AssetDatabase.IsValidFolder(folder)) AssetDatabase.CreateFolder("Assets/HayHustle/Resources", "Materials");
+            var lit = Shader.Find("Universal Render Pipeline/Lit");
+            if (lit == null) { Debug.LogError("Hay Hustle: URP Lit shader not found"); return; }
+            MakeMaterial(folder + "/HH_Lit.mat", lit, false);
+            MakeMaterial(folder + "/HH_LitEmissive.mat", lit, true);
+
+            // Keep the linear fog variants (fog is switched on from code, not in the scene).
+            var gs = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset");
+            if (gs != null && gs.Length > 0)
+            {
+                var so = new SerializedObject(gs[0]);
+                var strip = so.FindProperty("m_FogStripping");
+                var keep = so.FindProperty("m_FogKeepLinear");
+                if (strip != null) strip.intValue = 1;   // custom
+                if (keep != null) keep.boolValue = true;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
+            AssetDatabase.SaveAssets();
+        }
+
+        static void MakeMaterial(string path, Shader shader, bool emissive)
+        {
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(shader);
+                AssetDatabase.CreateAsset(m, path);
+            }
+            m.shader = shader;
+            if (emissive)
+            {
+                m.EnableKeyword("_EMISSION");
+                m.SetColor("_EmissionColor", Color.white);
+                m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            }
+            EditorUtility.SetDirty(m);
         }
 
         static void WriteVercelConfig(string output)

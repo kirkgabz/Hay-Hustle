@@ -23,6 +23,7 @@ namespace HayHustle
         {
             string key = ColorUtility.ToHtmlStringRGBA(c) + s + tiling.x.ToString("0.##") + "x" + tiling.y.ToString("0.##");
             if (cache.TryGetValue(key, out var m) && m != null) return m;
+            if (baseMaterial == null) baseMaterial = Resources.Load<Material>("Materials/HH_Lit");   // keeps the shader in web builds
             if (baseMaterial == null)
             {
                 // The render pipeline's default lit material (URP Lit in a URP project).

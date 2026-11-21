@@ -440,6 +440,14 @@ namespace HayHustle
 
         void KeepInBounds()
         {
+            if (transform.position.y < -5f)
+            {
+                // Fell through the ground somehow: put the farmer back on it.
+                cc.enabled = false;
+                transform.position = new Vector3(transform.position.x, 0.1f, transform.position.z);
+                cc.enabled = true;
+                vy = 0f;
+            }
             KeepWallSolid();
             Vector3 p = transform.position;
             Vector2 c = new Vector2(GameManager.PastureCenter.x, GameManager.PastureCenter.z);

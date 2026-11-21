@@ -121,6 +121,17 @@ namespace HayHustle
                 Backend.Resume((ok, err) => { if (!ok && !string.IsNullOrEmpty(err)) Notify(err, Palette.UiRed, 6f); });
         }
 
+        /// <summary>
+        /// For the automatic web test (and checking night visuals): from the browser console,
+        /// unityInstance.SendMessage("Hay Hustle", "SetHour", "21") moves the farm clock to 21:00.
+        /// </summary>
+        public void SetHour(string hour)
+        {
+            if (DayNight != null && float.TryParse(hour, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var h))
+                DayNight.TimeOfDay = Mathf.Repeat(h / 24f, 1f);
+        }
+
         void Update()
         {
             Notes.RemoveAll(n => n.Until < Time.unscaledTime);
