@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Hay Hustle</title>
+    <meta name="description" content="Hay Hustle - grow it, guard it, hustle it. A farm game with predators, zombies and survivors.">
+    <meta name="theme-color" content="#1b1610">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Hay Hustle">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" href="TemplateData/icon-192.png">
+    <link rel="apple-touch-icon" href="TemplateData/icon-192.png">
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1b1610;
+                   touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+                   overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+      #unity-canvas { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; height: 100dvh; display: block;
+                      background: #1b1610; outline: none; }
+      #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+                 background: radial-gradient(circle at 50% 40%, #3a5a26 0%, #1b1610 70%); color: #fff;
+                 font-family: Arial, Helvetica, sans-serif; z-index: 10; }
+      #loading h1 { margin: 0 0 6px; font-size: clamp(34px, 8vw, 72px); color: #ffd652; letter-spacing: 2px;
+                    text-shadow: 0 3px 0 rgba(0,0,0,0.5); }
+      #loading p { margin: 0 0 22px; opacity: 0.85; font-size: clamp(14px, 3vw, 20px); }
+      #bar { width: min(70vw, 420px); height: 14px; background: rgba(255,255,255,0.15); border-radius: 7px; overflow: hidden; }
+      #fill { width: 0%; height: 100%; background: #f2bf40; transition: width 0.2s; }
+      #hint { margin-top: 18px; font-size: 13px; opacity: 0.7; text-align: center; padding: 0 20px; }
+      #error { display: none; position: fixed; left: 10px; right: 10px; top: 10px; padding: 12px; background: #a32; color: #fff;
+               font-family: Arial, sans-serif; border-radius: 8px; z-index: 20; }
+    </style>
+  </head>
+  <body>
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <div id="loading">
+      <h1>HAY HUSTLE</h1>
+      <p>Grow it. Guard it. Hustle it.</p>
+      <div id="bar"><div id="fill"></div></div>
+      <div id="hint">Loading the farm... (the first time takes a little while)<br>Tip: play with your phone sideways. Add this page to your Home Screen to play it like an app.</div>
+    </div>
+    <div id="error"></div>
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+      var loading = document.querySelector("#loading");
+      var fill = document.querySelector("#fill");
+      var errorBox = document.querySelector("#error");
+
+      function showBanner(msg, type) {
+        if (type !== "error") { console.warn(msg); return; }
+        errorBox.style.display = "block";
+        errorBox.textContent = msg;
+      }
+
+      var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/774c1dfba95e512ec37fe4df1561622a.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/cd3c844395fe918f5f6b8bb281c0809a.data.unityweb",
+        frameworkUrl: buildUrl + "/6c07141f75f83f97ddbcf50786b43282.framework.js.unityweb",
+        codeUrl: buildUrl + "/bd54c0a7f6876918fd83bf3aec055555.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "HayHustle",
+        productVersion: "0.1.0",
+        showBanner: showBanner,
+        // Keep the save file (browser storage) written to disk right away.
+        autoSyncPersistentDataPath: true,
+        // Phones have very sharp screens; drawing at 2x at most keeps the game smooth.
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, isMobile ? 2 : 2.5),
+      };
+
+      // Stop the page from scrolling/zooming while playing.
+      document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
+      document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+
+      // On phones, try to lock to landscape after the first tap (works in full screen / installed app).
+      if (isMobile) {
+        window.addEventListener("pointerup", function lock() {
+          try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock("landscape").catch(function () {}); } catch (e) {}
+        }, { once: true });
+      }
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = function () {
+        createUnityInstance(canvas, config, function (progress) {
+          fill.style.width = (100 * progress) + "%";
+        }).then(function (unityInstance) {
+          loading.style.display = "none";
+          window.unityInstance = unityInstance;
+        }).catch(function (message) {
+          showBanner("Hay Hustle could not start: " + message, "error");
+        });
+      };
+      script.onerror = function () { showBanner("Could not load the game files. Check your internet and reload.", "error"); };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>

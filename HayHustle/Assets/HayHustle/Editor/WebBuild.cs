@@ -75,6 +75,12 @@ namespace HayHustle.EditorTools
                 return false;
             }
 
+            if (!File.Exists(Path.Combine(output, "index.html")) || !Directory.Exists(Path.Combine(output, "Build")))
+            {
+                Fail("Unity finished, but no web files were made. If the Console says \"Build target 'WebGL' not supported\", " +
+                     "close Unity completely and open the project again (the Web module only loads when Unity starts), then build again.", showDialogs);
+                return false;
+            }
             WriteVercelConfig(output);
             long bytes = Directory.GetFiles(output, "*", SearchOption.AllDirectories).Sum(f => new FileInfo(f).Length);
             string msg = $"Done! The web version is in:\n{output}\n\nSize: {bytes / (1024f * 1024f):0.0} MB\n\n" +

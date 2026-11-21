@@ -29,3 +29,6 @@ GameSource/
 
 # The web version (built by Hay Hustle > Build for Web) is published by Vercel, so keep its Build folder
 !/WebBuild/Build/
+
+# Burst build leftovers
+/HayHustle/Data/
