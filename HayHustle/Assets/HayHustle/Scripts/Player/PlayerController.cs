@@ -440,13 +440,13 @@ namespace HayHustle
 
         void KeepInBounds()
         {
-            if (transform.position.y < -5f)
+            if (transform.position.y < -0.05f)
             {
-                // Fell through the ground somehow: put the farmer back on it.
+                // The farm is flat at height 0: never let the farmer sink below it (no falling, no bouncing back up).
                 cc.enabled = false;
-                transform.position = new Vector3(transform.position.x, 0.1f, transform.position.z);
+                transform.position = new Vector3(transform.position.x, 0f, transform.position.z);
                 cc.enabled = true;
-                vy = 0f;
+                vy = -2f;
             }
             KeepWallSolid();
             Vector3 p = transform.position;

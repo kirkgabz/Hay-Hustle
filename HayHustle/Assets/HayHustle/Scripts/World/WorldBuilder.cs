@@ -18,6 +18,11 @@ namespace HayHustle
             World = world;
 
             Visuals.Skin(Visuals.Prim(PrimitiveType.Plane, world, Vector3.zero, new Vector3(20f, 1f, 20f), Palette.Grass, true), Palette.Grass, Surface.Grass, new Vector2(35f, 35f)).name = "Ground";
+            // A plain box under the grass, so the ground is solid even if the web build drops the plane's mesh collider.
+            var groundSlab = new GameObject("Ground Collider").AddComponent<BoxCollider>();
+            groundSlab.transform.SetParent(world, false);
+            groundSlab.center = new Vector3(0f, -0.5f, 0f);
+            groundSlab.size = new Vector3(220f, 1f, 220f);
             Visuals.Skin(Visuals.Prim(Cube, world, new Vector3(0f, 0.005f, 11f), new Vector3(46f, 0.01f, 12f), Palette.Dirt), Palette.Dirt, Surface.Dirt, new Vector2(8f, 2f)).name = "Farmyard";
             Visuals.Skin(Visuals.Prim(Cube, world, new Vector3(0f, 0.01f, 47f), new Vector3(5f, 0.01f, 60f), Palette.Road), Palette.Road, Surface.Dirt, new Vector2(1f, 12f)).name = "Road";
 
